@@ -21,3 +21,34 @@ class MahasiswaResponse(MahasiswaBase):
     created_at: datetime
     class Config:
         from_attributes = True
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+
+# UMKM
+class UmkmBase(BaseModel):
+    username: str
+    email: EmailStr
+    nama_umkm: str
+    lokasi: str
+    jam_operasional: str
+    deskripsi: str | None = None
+    id_pengelola: str 
+
+class UmkmCreate(UmkmBase):
+    password: str = Field(..., min_length=6, max_length=72)
+
+class UmkmResponse(UmkmBase):
+    id_umkm: str
+    peran: str
+    rating: float
+    status_buka: bool
+
+    class Config:
+        from_attributes = True
+

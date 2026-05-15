@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from app.db import models
 from app.schemas import user
 from app.core.security import get_password_hash
-# import uuid
+import uuid
 
 def create_mahasiswa(db: Session, mahasiswa: user.MahasiswaCreate):
     # generated_id_akun = str(uuid.uuid4())[:20] 
@@ -28,5 +28,37 @@ def create_mahasiswa(db: Session, mahasiswa: user.MahasiswaCreate):
 def get_mahasiswa_by_nim(db: Session, nim: str):
     return db.query(models.Mahasiswa).filter(models.Mahasiswa.nim == nim).first()
 
-def get_mahasiswa_by_email(db: Session, email: str):
-    return db.query(models.Mahasiswa).filter(models.Mahasiswa.email == email).first()
+# def get_mahasiswa_by_email(db: Session, email: str):
+#     return db.query(models.Mahasiswa).filter(models.Mahasiswa.email == email).first()
+
+def get_akun_by_email(db: Session, email: str):
+    return db.query(models.Akun).filter(models.Akun.email == email).first()
+
+def create_umkm(db: Session, umkm: user.UmkmCreate):
+    hashed_password = get_password_hash(umkm.password)
+    
+    # Generate ID unik untuk UMKM (karena varchar 20, kita ambil sebagian UUID agar tidak kepanjangan)
+    # Hati-hati: UUID default panjangnya 36 karakter. Di modelmu String(20).
+    new_id = str(uuid.uuid4())[:20] 
+
+    db_umkm = models.UMKM(
+        id_akun=new_id,
+        id_umkm=new_id,
+        username=umkm.username,
+        email=umkm.email,
+        password=hashed_password,
+        peran="UMKM",
+        
+        # Field spesifik subclass UMKM
+        id_pengelola=umkm.id_pengelola,
+        nama_umkm=umkm.nama_umkm,
+        lokasi=umkm.lokasi,
+        jam_operasional=umkm.jam_operasional,
+        deskripsi=umkm.deskripsi
+    )
+
+    db.add(db_umkm)
+    db.commit()
+    db.refresh(db_umkm)
+
+    return db_umkm
