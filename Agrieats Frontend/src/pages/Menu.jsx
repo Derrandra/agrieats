@@ -1,68 +1,47 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../services/api";
 
 import Sidebar from "../components/layout/Sidebar";
 import Topbar from "../components/layout/Topbar";
-import { Search, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Plus } from "lucide-react";
 
 function Menu() {
   const navigate = useNavigate();
 
-  // state untuk status toko
   const [storeOpen, setStoreOpen] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   function updateStoreStatus() {
     setStoreOpen(!storeOpen);
   }
 
-  // state pencarian dan data menu
   const [search, setSearch] = useState("");
   const [menus, setMenus] = useState([]);
 
-  // ambil data menu pas komponen pertama kali dirender
   useEffect(() => {
-    const savedMenus = localStorage.getItem("menus");
-
-    if (savedMenus) {
-      setMenus(JSON.parse(savedMenus));
-    } else {
-      // data bawaan kalau local storage masih kosong
-      const defaultMenus = [
-        {
-          id: 1,
-          image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
-          name: "Nasi Goreng",
-          category: "Makanan Berat",
-          stock: 12,
-          price: "15000",
-          description: "Nasi goreng spesial",
-          images: [
-            "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
-          ],
-        },
-        {
-          id: 2,
-          image: "https://images.unsplash.com/photo-1512058564366-18510be2db19",
-          name: "Kwetiau Goreng",
-          category: "Makanan Berat",
-          stock: 5,
-          price: "18000",
-          description: "Kwetiau goreng pedas",
-          images: [
-            "https://images.unsplash.com/photo-1512058564366-18510be2db19",
-          ],
-        },
-      ];
-
-      localStorage.setItem("menus", JSON.stringify(defaultMenus));
-      setMenus(defaultMenus);
+    async function fetchMenus() {
+      try {
+        // Ganti "/menus" sesuai dengan endpoint yang ada di FastAPI kamu
+        const response = await api.get("/menus"); 
+        setMenus(response.data);
+      } catch (error) {
+        console.error("Gagal mengambil data menu dari server:", error);
+      } finally {
+        setIsLoading(false);
+      }
     }
+
+    fetchMenus();
   }, []);
 
-  // filter data berdasarkan input pencarian
   const filteredMenus = menus.filter((menu) =>
-    menu.name.toLowerCase().includes(search.toLowerCase())
+    menu.nama_menu.toLowerCase().includes(search.toLowerCase())
   );
+
+  if (isLoading) {
+    return <div className="flex min-h-screen items-center justify-center">Loading daftar menu...</div>;
+  }
 
   return (
     <div className="flex min-h-screen bg-[#F2F0F0]">
@@ -71,7 +50,6 @@ function Menu() {
       <div className="flex-1 ml-64 p-10">
         <Topbar storeOpen={storeOpen} updateStoreStatus={updateStoreStatus} />
 
-        {/* bagian header */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Manajemen Menu</h1>
@@ -87,7 +65,6 @@ function Menu() {
           </button>
         </div>
 
-        {/* ringkasan data menu */}
         <div className="grid grid-cols-3 gap-5 mb-10">
           <div className="bg-white p-6 rounded-2xl shadow">
             <h2 className="text-gray-500">Total Menu</h2>
@@ -99,19 +76,18 @@ function Menu() {
           <div className="bg-white p-6 rounded-2xl shadow">
             <h2 className="text-gray-500">Total Menu Aktif</h2>
             <p className="text-4xl font-bold text-green-700 mt-3">
-              {menus.filter((menu) => menu.stock > 0).length}
+              {menus.filter((menu) => menu.ketersediaan === true).length}
             </p>
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow">
             <h2 className="text-gray-500">Stok Kosong</h2>
             <p className="text-4xl font-bold text-red-500 mt-3">
-              {menus.filter((menu) => menu.stock <= 0).length}
+              {menus.filter((menu) => menu.ketersediaan === false).length}
             </p>
           </div>
         </div>
 
-        {/* daftar menu & pencarian */}
         <div className="flex justify-between items-center mb-5">
           <h1 className="text-2xl font-bold">Daftar Menu</h1>
           <div className="relative">
@@ -129,9 +105,7 @@ function Menu() {
           </div>
         </div>
 
-        {/* tabel menu */}
         <div className="bg-white rounded-2xl shadow overflow-hidden">
-          {/* header tabel */}
           <div className="grid grid-cols-5 bg-green-700 text-white p-5 font-semibold">
             <p>Gambar</p>
             <p>Nama Menu</p>
@@ -140,52 +114,55 @@ function Menu() {
             <p>Harga</p>
           </div>
 
-          {/* isi tabel */}
-          {filteredMenus.map((menu) => (
-            <div
-              key={menu.id}
-              className="grid grid-cols-5 items-center p-5 border-b hover:bg-gray-50 transition-all"
-            >
-              <img
-                src={
-                  menu.images?.[0] ||
-                  menu.image ||
-                  "https://via.placeholder.com/150"
-                }
-                alt={menu.name}
-                className="w-24 h-24 object-cover rounded-xl"
-              />
-
-              <p
-                onClick={() => navigate(`/menu/edit/${menu.id}`)}
-                className="font-semibold text-lg cursor-pointer hover:text-green-700"
+          {filteredMenus.length === 0 ? (
+             <div className="p-8 text-center text-gray-500">
+               Tidak ada menu yang ditemukan.
+             </div>
+          ) : (
+            filteredMenus.map((menu) => (
+              <div
+                key={menu.id_menu}
+                className="grid grid-cols-5 items-center p-5 border-b hover:bg-gray-50 transition-all"
               >
-                {menu.name}
-              </p>
+                <img
+                  src={
+                    menu.foto_menu || "https://via.placeholder.com/150"
+                  }
+                  alt={menu.nama_menu}
+                  className="w-24 h-24 object-cover rounded-xl"
+                />
 
-              <div>
-                <span className="bg-gray-100 px-4 py-2 rounded-lg text-sm">
-                  {menu.category}
-                </span>
-              </div>
+                <p
+                  onClick={() => navigate(`/menu/edit/${menu.id_menu}`)}
+                  className="font-semibold text-lg cursor-pointer hover:text-green-700"
+                >
+                  {menu.nama_menu}
+                </p>
 
-              <div>
-                {menu.stock > 0 ? (
-                  <span className="bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm">
-                    Tersedia
+                <div>
+                  <span className="bg-gray-100 px-4 py-2 rounded-lg text-sm">
+                    {menu.tag_makanan || "Umum"}
                   </span>
-                ) : (
-                  <span className="bg-red-100 text-red-500 px-4 py-2 rounded-lg text-sm">
-                    Habis
-                  </span>
-                )}
-              </div>
+                </div>
 
-              <p className="font-bold text-green-700 text-xl">
-                Rp {menu.price}
-              </p>
-            </div>
-          ))}
+                <div>
+                  {menu.ketersediaan ? (
+                    <span className="bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm">
+                      Tersedia
+                    </span>
+                  ) : (
+                    <span className="bg-red-100 text-red-500 px-4 py-2 rounded-lg text-sm">
+                      Habis
+                    </span>
+                  )}
+                </div>
+
+                <p className="font-bold text-green-700 text-xl">
+                  Rp {menu.harga ? menu.harga.toLocaleString('id-ID') : 0}
+                </p>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
