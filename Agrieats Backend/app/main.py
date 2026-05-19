@@ -27,7 +27,7 @@ app.add_middleware(
 
 app.include_router(mahasiswa.router, prefix="/api/mahasiswa", tags=["Mahasiswa"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Autentikasi"])
-app.include_router(mahasiswa.router, prefix="/api/mahasiswa", tags=["Mahasiswa"])
+# app.include_router(mahasiswa.router, prefix="/api/mahasiswa", tags=["Mahasiswa"])
 
 app.include_router(umkm.router, prefix="/api/umkm", tags=["Penjual / UMKM"])
 app.include_router(menu.router, prefix="/api/menu", tags=["Katalog Menu"])

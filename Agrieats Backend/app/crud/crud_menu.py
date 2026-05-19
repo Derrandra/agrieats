@@ -22,5 +22,8 @@ class CRUDMenu:
         db.commit()
         db.refresh(db_menu)
         return db_menu
+    
+    def get_all_by_umkm(self, db: Session, id_umkm: str):
+        return db.query(models.Menu).filter(models.Menu.id_umkm == id_umkm).all()
 
 menu_repository = CRUDMenu()

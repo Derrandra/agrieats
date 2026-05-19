@@ -23,7 +23,7 @@ function Menu() {
     async function fetchMenus() {
       try {
         // Ganti "/menus" sesuai dengan endpoint yang ada di FastAPI kamu
-        const response = await api.get("/menus"); 
+        const response = await api.get("/api/menu/saya"); 
         setMenus(response.data);
       } catch (error) {
         console.error("Gagal mengambil data menu dari server:", error);

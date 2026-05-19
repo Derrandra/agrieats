@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { loginUser, saveLogin } from "../services/auth";
+import api from "../services/api"
 
 function Login() {
   const navigate = useNavigate();
@@ -9,21 +10,54 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // handle submit form
-  function handleLogin(event) {
+  async function handleLogin(event) {
     event.preventDefault();
+    setError("");
+    setIsSubmitting(true)
+    // const user = loginUser(email, password);
+    try {
+      const formData = new URLSearchParams();
+      formData.append("username", email); // Form OAuth2 membaca email sebagai properti 'username'
+      formData.append("password", password);
 
-    const user = loginUser(email, password);
+      const loginResponse = await api.post("/api/auth/login", formData, {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      });
 
-    if (user) {
-      // simpan session dan arahkan ke dashboard
-      saveLogin(user);
+      const token = loginResponse.data.access_token;
+      localStorage.setItem("token", token);
+      const profileResponse = await api.get("/api/umkm/me", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      localStorage.setItem("user_session", JSON.stringify(profileResponse.data));
       navigate("/dashboard");
-    } else {
-      setError("Email atau password salah");
+
+    } catch (err) {
+      console.error(err);
+      if (err.response && err.response.data && err.response.data.detail) {
+        setError(err.response.data.detail);
+      } else {
+        setError("Email atau password salah, atau server belum aktif.");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   }
+  //   if (user) {
+  //     // simpan session dan arahkan ke dashboard
+  //     saveLogin(user);
+  //     navigate("/dashboard");
+  //   } else {
+  //     setError("Email atau password salah");
+  //   }
+  // }
 
   return (
     <div className="min-h-screen flex justify-center items-center bg-[#F2F0F0]">
