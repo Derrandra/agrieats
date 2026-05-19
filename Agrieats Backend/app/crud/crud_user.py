@@ -36,9 +36,6 @@ def get_akun_by_email(db: Session, email: str):
 
 def create_umkm(db: Session, umkm: user.UmkmCreate):
     hashed_password = get_password_hash(umkm.password)
-    
-    # Generate ID unik untuk UMKM (karena varchar 20, kita ambil sebagian UUID agar tidak kepanjangan)
-    # Hati-hati: UUID default panjangnya 36 karakter. Di modelmu String(20).
     new_id = str(uuid.uuid4())[:20] 
 
     db_umkm = models.UMKM(
