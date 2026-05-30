@@ -43,4 +43,11 @@ class CRUDMenu:
         db.commit()
         return True
 
+    def get_menu_by_toko(self, db: Session, id_umkm: str):
+        # Mengambil menu milik toko spesifik yang stoknya sedang tersedia
+        return db.query(models.Menu).filter(
+            models.Menu.id_umkm == id_umkm,
+            models.Menu.ketersediaan == True
+        ).all()
+    
 menu_repository = CRUDMenu()

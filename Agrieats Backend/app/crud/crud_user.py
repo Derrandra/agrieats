@@ -59,3 +59,12 @@ def create_umkm(db: Session, umkm: user.UmkmCreate):
     db.refresh(db_umkm)
 
     return db_umkm
+
+def get_all_umkm(db: Session, hanya_buka: bool = True):
+    query = db.query(models.UMKM)
+    
+    # Filter agar hanya menampilkan UMKM yang status_buka = True
+    if hanya_buka:
+        query = query.filter(models.UMKM.status_buka == True)
+        
+    return query.all()

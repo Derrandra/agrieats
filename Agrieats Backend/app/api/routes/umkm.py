@@ -5,6 +5,7 @@ from app.schemas import user
 from app.crud import crud_user
 from app.api.dependencies import get_current_user
 from app.db import models
+from typing import List
 
 router = APIRouter()
 
@@ -22,3 +23,11 @@ def get_profil_toko(current_user: models.Akun = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Akses ditolak. Anda bukan UMKM.")
     
     return current_user
+
+@router.get("/", response_model=List[user.UmkmResponse])
+def lihat_daftar_umkm(
+    db: Session = Depends(get_db),
+    current_user: models.Akun = Depends(get_current_user)
+):
+    daftar_umkm = crud_user.get_all_umkm(db=db, hanya_buka=True)
+    return daftar_umkm
