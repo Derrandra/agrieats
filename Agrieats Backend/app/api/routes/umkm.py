@@ -6,6 +6,7 @@ from app.crud import crud_user
 from app.api.dependencies import get_current_user
 from app.db import models
 from typing import List
+from app.crud.crud_po import po_repository
 
 router = APIRouter()
 
@@ -31,3 +32,14 @@ def lihat_daftar_umkm(
 ):
     daftar_umkm = crud_user.get_all_umkm(db=db, hanya_buka=True)
     return daftar_umkm
+
+@router.get("/statistik", response_model=user.StatistikUMKM)
+def lihat_statistik_toko(
+    db: Session = Depends(get_db),
+    current_user: models.Akun = Depends(get_current_user)
+):
+    if current_user.peran != "UMKM":
+        raise HTTPException(status_code=403, detail="Hanya penjual yang dapat melihat statistik toko.")
+    
+    statistik = po_repository.get_statistik_umkm(db=db, id_umkm=current_user.id_akun)
+    return statistik

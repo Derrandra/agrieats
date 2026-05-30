@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.db import models
 from app.schemas import po as po_schema
+from sqlalchemy import desc, func
 
 class CRUDPreOrder:
     def create_po(self, db: Session, po_data: po_schema.POCreate, nim: str):
@@ -76,4 +77,23 @@ class CRUDPreOrder:
         # Mengambil semua riwayat PO milik satu mahasiswa
         return db.query(models.PreOrder).filter(models.PreOrder.nim == nim).all()
 
+    def get_riwayat_mahasiswa(self, db: Session, nim: str):
+        # Mengambil semua PO milik mahasiswa, diurutkan dari yang terbaru
+        return db.query(models.PreOrder).filter(
+            models.PreOrder.nim == nim
+        ).order_by(desc(models.PreOrder.created_at)).all()
+    
+    def get_statistik_umkm(self, db: Session, id_umkm: str):
+        query_dasar = db.query(models.PreOrder).join(models.DetailPO).join(models.Menu).filter(
+            models.Menu.id_umkm == id_umkm,
+            models.PreOrder.status == "Selesai"
+        )
+
+        total_pesanan = query_dasar.with_entities(func.count(func.distinct(models.PreOrder.id_po))).scalar() or 0
+        total_pendapatan = query_dasar.with_entities(func.sum(func.distinct(models.PreOrder.total_harga))).scalar() or 0.0
+
+        return {
+            "total_pesanan_selesai": total_pesanan,
+            "total_pendapatan": total_pendapatan
+        }
 po_repository = CRUDPreOrder()

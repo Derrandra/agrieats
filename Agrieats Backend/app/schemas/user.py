@@ -52,3 +52,9 @@ class UmkmResponse(UmkmBase):
     class Config:
         from_attributes = True
 
+class StatistikUMKM(BaseModel):
+    total_pesanan_selesai: int
+    total_pendapatan: float
+
+    class Config:
+        from_attributes = True

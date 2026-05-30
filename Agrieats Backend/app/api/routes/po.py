@@ -49,6 +49,17 @@ def riwayat_pesanan_mahasiswa(
     riwayat = po_repository.get_po_by_mahasiswa(db=db, nim=current_user.id_akun)
     return riwayat
 
+@router.get("/riwayat", response_model=List[po_schema.POResponse])
+def lihat_riwayat_pesanan(
+    db: Session = Depends(get_db),
+    current_user: models.Akun = Depends(get_current_user)
+):
+    if current_user.peran != "MAHASISWA":
+        raise HTTPException(status_code=403, detail="Akses ditolak. Fitur ini khusus mahasiswa.")
+    
+    riwayat = po_repository.get_riwayat_mahasiswa(db=db, nim=current_user.id_akun)
+    return riwayat
+
 @router.put("/{id_po}/status", response_model=po_schema.POResponse)
 def ubah_status_pesanan(
     id_po: str,
