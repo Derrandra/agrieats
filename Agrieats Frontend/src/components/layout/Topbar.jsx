@@ -1,34 +1,43 @@
+import { useState } from "react";
 import { Bell, UserCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-function Topbar({ storeOpen, updateStoreStatus }) {
+function Topbar({ storeOpen, updateStoreStatus, onNotificationClick }) {
+  const navigate = useNavigate();
+
   return (
     <div className="bg-green-800 rounded-2xl p-5 shadow flex justify-between items-center mb-8">
+      
       {/* info admin */}
       <div>
         <h1 className="text-2xl font-bold text-white">Welcome, UMKM X!</h1>
         <p className="text-white">Dashboard Admin</p>
       </div>
 
-      {/* kontrol status toko & icon profil */}
-      <div className="flex items-center gap-5 text-white">
-        <div className="flex items-center gap-3">
-          <p className="font-medium">
-            {storeOpen ? "Toko Buka" : "Toko Tutup"}
-          </p>
+      {/* menu kanan: status toko, notifikasi, dan profil */}
+      <div className="flex items-center gap-5">
+        <div className="flex items-center gap-3 text-white">
+          <p>{storeOpen ? "Toko Buka" : "Toko Tutup"}</p>
 
           <button
             onClick={updateStoreStatus}
             className={`w-16 h-8 rounded-full flex items-center px-1 transition-all ${
-              storeOpen ? "bg-green-400 justify-end" : "bg-red-600 justify-start"
+              storeOpen ? "bg-green-400 justify-end" : "bg-red-500 justify-start"
             }`}
           >
             <div className="w-6 h-6 bg-white rounded-full" />
           </button>
         </div>
-        
-        <Bell />
-        <UserCircle size={35} />
+
+        <button onClick={() => setShowNotification(true)}>
+          <Bell size={24} color="white" className="cursor-pointer" />
+        </button>
+
+        <button onClick={() => navigate("/profile")}>
+          <UserCircle size={34} color="white" className="cursor-pointer" />
+        </button>
       </div>
+      
     </div>
   );
 }

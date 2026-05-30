@@ -17,12 +17,16 @@ function Register() {
     event.preventDefault();
 
     const newUser = {
+      id: Date.now(),
       name,
       email,
       password,
       phone,
       address,
-    };
+      image:
+        "https://ui-avatars.com/api/?name=" +
+        encodeURIComponent(name),
+    };      
 
     // simpan data user baru
     registerUser(newUser);

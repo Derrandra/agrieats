@@ -37,14 +37,20 @@ function Sidebar() {
       {/* list menu */}
       <div className="space-y-3">
         <div
-          onClick={() => navigate("/")}
-          className={`flex items-center gap-3 cursor-pointer p-3 rounded-xl transition-all ${
-            location.pathname === "/" ? "bg-white text-green-800" : "hover:bg-green-700"
-          }`}
+          onClick={() =>
+            navigate("/dashboard")
+          }
+
+          className={`flex items-center gap-3 cursor-pointer p-3 rounded-xl
+            ${
+              location.pathname === "/dashboard"
+              ? "bg-green-700"
+              : "hover:bg-green-700"
+            }
+          `}
         >
-          <LayoutDashboard size={20} />
-          <p>Dashboard</p>
-        </div>
+
+          <LayoutDashboard size={20} /> <p>Dashboard</p> </div>
 
         <div
           onClick={() => navigate("/menu")}
@@ -66,7 +72,9 @@ function Sidebar() {
           <p>Orders</p>
         </div>
 
-        <div className="flex items-center gap-3 cursor-pointer p-3 rounded-xl hover:bg-green-700 transition-all">
+        <div 
+          onClick={() => navigate("/profile")}
+          className="flex items-center gap-3 cursor-pointer p-3 rounded-xl hover:bg-green-700 transition-all">
           <User size={20} />
           <p>Profile</p>
         </div>

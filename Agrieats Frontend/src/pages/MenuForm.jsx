@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import api from "../services/api";
 
 import Sidebar from "../components/layout/Sidebar";
 import Topbar from "../components/layout/Topbar";
@@ -27,22 +28,48 @@ function MenuForm() {
 
   // load data kalau masuk ke mode edit
   useEffect(() => {
-    if (isEditMode) {
-      const savedMenus = JSON.parse(localStorage.getItem("menus")) || [];
-      const selectedMenu = savedMenus.find((menu) => menu.id === Number(id));
+    if (!isEditMode) return;
+    loadMenu();
+  }, [id]);
 
-      if (selectedMenu) {
-        setMenuName(selectedMenu.name);
-        setCategory(selectedMenu.category);
-        setStock(selectedMenu.stock);
-        setPrice(selectedMenu.price);
-        setDescription(selectedMenu.description);
-        setImages(
-          selectedMenu.images || (selectedMenu.image ? [selectedMenu.image] : [])
-        );
-      }
+  async function loadMenu() {
+    try {
+      /*
+      =================================
+      BACKEND
+      GET /menus/:id
+      =================================
+      */
+      const response = await api.get(`/menus/${id}`);
+      const menu = response.data;
+
+      setMenuName(menu.name);
+      setCategory(menu.category);
+      setStock(menu.stock);
+      setPrice(menu.price);
+      setDescription(menu.description);
+      setImages(menu.images || []);
+    } catch (error) {
+      console.log(error);
+
+      // fallback frontend
+      const dummyMenu = {
+        name: "Nasi Goreng",
+        category: "Makanan Berat",
+        stock: 10,
+        price: "15000",
+        description: "Dummy menu",
+        images: ["https://images.unsplash.com/photo-1504674900247-0877df9cc836"],
+      };
+
+      setMenuName(dummyMenu.name);
+      setCategory(dummyMenu.category);
+      setStock(dummyMenu.stock);
+      setPrice(dummyMenu.price);
+      setDescription(dummyMenu.description);
+      setImages(dummyMenu.images);
     }
-  }, []);
+  }
 
   // handle upload gambar
   function handleImageUpload(event) {
@@ -52,38 +79,61 @@ function MenuForm() {
   }
 
   // simpan menu baru atau update menu yang diedit
-  function handleSaveMenu() {
-    const savedMenus = JSON.parse(localStorage.getItem("menus")) || [];
+  async function handleSaveMenu() {
+    if (!menuName || !category || !price) {
+      alert("Lengkapi data menu terlebih dahulu");
+      return;
+    }
+
     const menuData = {
-      id: isEditMode ? Number(id) : Date.now(),
       name: menuName,
       category,
       stock,
       price,
       description,
-      image: images[0],
       images,
     };
 
-    if (isEditMode) {
-      const updatedMenus = savedMenus.map((menu) =>
-        menu.id === Number(id) ? menuData : menu
-      );
-      localStorage.setItem("menus", JSON.stringify(updatedMenus));
-    } else {
-      savedMenus.push(menuData);
-      localStorage.setItem("menus", JSON.stringify(savedMenus));
+    try {
+      if (isEditMode) {
+        /*
+        ======================
+        PUT /menus/:id
+        ======================
+        */
+        await api.put(`/menus/${id}`, menuData);
+      } else {
+        /*
+        ======================
+        POST /menus
+        ======================
+        */
+        await api.post("/menus", menuData);
+      }
+      navigate("/menu");
+    } catch (error) {
+      console.log(error);
+      alert("Backend belum tersedia");
     }
-
-    navigate("/menu");
   }
 
   // hapus menu dari local storage
-  function handleDeleteMenu() {
-    const savedMenus = JSON.parse(localStorage.getItem("menus")) || [];
-    const filteredMenus = savedMenus.filter((menu) => menu.id !== Number(id));
-    localStorage.setItem("menus", JSON.stringify(filteredMenus));
-    navigate("/menu");
+  async function handleDeleteMenu() {
+    const confirmDelete = window.confirm("Yakin hapus menu?");
+    if (!confirmDelete) return;
+
+    try {
+      /*
+      ======================
+      DELETE /menus/:id
+      ======================
+      */
+      await api.delete(`/menus/${id}`);
+      navigate("/menu");
+    } catch (error) {
+      console.log(error);
+      alert("Backend belum tersedia");
+    }
   }
 
   return (
@@ -103,7 +153,6 @@ function MenuForm() {
         {/* konten utama form */}
         <div className="bg-white rounded-2xl shadow p-8">
           <div className="grid grid-cols-2 gap-10">
-            
             {/* kolom kiri: gambar */}
             <div>
               <div className="w-full h-96 bg-gray-100 rounded-2xl overflow-hidden mb-5">
@@ -135,12 +184,7 @@ function MenuForm() {
               {/* tombol upload gambar */}
               <label className="mt-5 bg-green-700 hover:bg-green-800 text-white px-5 py-3 rounded-xl inline-block cursor-pointer">
                 Upload Image
-                <input
-                  type="file"
-                  multiple
-                  hidden
-                  onChange={handleImageUpload}
-                />
+                <input type="file" multiple hidden onChange={handleImageUpload} />
               </label>
             </div>
 
@@ -174,14 +218,12 @@ function MenuForm() {
                 <label className="font-semibold">Stock</label>
                 <div className="flex items-center gap-3 mt-2">
                   <button
-                    onClick={() => setStock(stock - 1)}
+                    onClick={() => setStock(stock > 0 ? stock - 1 : 0)}
                     className="bg-gray-200 p-3 rounded-lg"
                   >
                     <Minus size={18} />
                   </button>
-                  <div className="px-8 py-3 bg-gray-100 rounded-lg">
-                    {stock}
-                  </div>
+                  <div className="px-8 py-3 bg-gray-100 rounded-lg">{stock}</div>
                   <button
                     onClick={() => setStock(stock + 1)}
                     className="bg-green-700 text-white p-3 rounded-lg"

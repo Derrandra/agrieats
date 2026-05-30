@@ -1,78 +1,50 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { loginUser, saveLogin } from "../services/auth";
-import api from "../services/api"
 
 function Login() {
   const navigate = useNavigate();
 
-  // state untuk form login
+  // state form
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // handle submit form
-  async function handleLogin(event) {
+  // login
+  function handleLogin(event) {
     event.preventDefault();
-    setError("");
-    setIsSubmitting(true)
-    // const user = loginUser(email, password);
-    try {
-      const formData = new URLSearchParams();
-      formData.append("username", email); // Form OAuth2 membaca email sebagai properti 'username'
-      formData.append("password", password);
 
-      const loginResponse = await api.post("/api/auth/login", formData, {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      });
+    const user = loginUser(email, password);
 
-      const token = loginResponse.data.access_token;
-      localStorage.setItem("token", token);
-      const profileResponse = await api.get("/api/umkm/me", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      localStorage.setItem("user_session", JSON.stringify(profileResponse.data));
+    if (user) {
+      // simpan user yang sedang login
+      localStorage.setItem("currentUser", JSON.stringify(user));
+
+      // optional kalau auth.js kamu punya saveLogin()
+      saveLogin(user);
+
       navigate("/dashboard");
-
-    } catch (err) {
-      console.error(err);
-      if (err.response && err.response.data && err.response.data.detail) {
-        setError(err.response.data.detail);
-      } else {
-        setError("Email atau password salah, atau server belum aktif.");
-      }
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      setError("Email atau password yang Anda masukkan salah.");
     }
   }
-  //   if (user) {
-  //     // simpan session dan arahkan ke dashboard
-  //     saveLogin(user);
-  //     navigate("/dashboard");
-  //   } else {
-  //     setError("Email atau password salah");
-  //   }
-  // }
 
   return (
     <div className="min-h-screen flex justify-center items-center bg-[#F2F0F0]">
       <div className="bg-white p-10 rounded-3xl shadow-xl w-[450px]">
-        {/* judul & deskripsi */}
+
+        {/* HEADER */}
         <h1 className="text-4xl font-bold text-green-700 mb-2">AgriEats</h1>
         <p className="text-gray-500 mb-8">Login UMKM Dashboard</p>
 
-        {/* alert kalau login gagal */}
+        {/* ERROR */}
         {error && (
           <div className="bg-red-100 text-red-500 p-3 rounded-xl mb-5">
             {error}
           </div>
         )}
 
+        {/* FORM */}
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
             <label className="font-medium">Email</label>
@@ -82,6 +54,7 @@ function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full border p-3 rounded-xl mt-2 outline-none"
+              required
             />
           </div>
 
@@ -93,6 +66,7 @@ function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full border p-3 rounded-xl mt-2 outline-none"
+              required
             />
           </div>
 
@@ -104,12 +78,14 @@ function Login() {
           </button>
         </form>
 
+        {/* REGISTER */}
         <p className="text-center mt-6 text-gray-500">
           Belum punya akun?
           <Link to="/register" className="text-green-700 font-semibold ml-2">
             Sign Up
           </Link>
         </p>
+
       </div>
     </div>
   );

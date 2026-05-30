@@ -5,6 +5,7 @@ import {
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Profile from "./pages/Profile";
 
 import Dashboard from "./pages/Dashboard";
 import Orders from "./pages/Orders";
@@ -16,6 +17,11 @@ function App() {
   return (
 
     <Routes>
+
+      <Route
+        path="/profile"
+        element={<Profile />}
+      />
 
       {/* AUTH */}
 
