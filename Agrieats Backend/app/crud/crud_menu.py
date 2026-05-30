@@ -2,6 +2,7 @@ import uuid
 from sqlalchemy.orm import Session
 from app.db import models
 from app.schemas import menu as menu_schema
+from sqlalchemy import or_
 
 class CRUDMenu:
     def create(self, db: Session, menu: menu_schema.MenuCreate, id_umkm: str):
@@ -50,4 +51,14 @@ class CRUDMenu:
             models.Menu.ketersediaan == True
         ).all()
     
+    def search_menu(self, db: Session, keyword: str):
+        pola_pencarian = f"%{keyword}%"
+        
+        return db.query(models.Menu).filter(
+            models.Menu.ketersediaan == True,
+            or_(
+                models.Menu.nama_menu.ilike(pola_pencarian),
+                models.Menu.tag_makanan.ilike(pola_pencarian)
+            )
+        ).all()
 menu_repository = CRUDMenu()

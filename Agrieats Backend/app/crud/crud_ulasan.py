@@ -1,5 +1,6 @@
 import uuid
 from sqlalchemy.orm import Session
+from sqlalchemy import func 
 from fastapi import HTTPException
 from app.db import models
 from app.schemas import ulasan as ulasan_schema
@@ -31,10 +32,25 @@ class CRUDUlasan:
             isi_ulasan=ulasan_data.isi_ulasan,
             rating=ulasan_data.rating
         )
-        
         db.add(db_ulasan)
         db.commit()
         db.refresh(db_ulasan)
+
+        
+        # Hitung rata-rata rating baru untuk id_umkm_target dari seluruh ulasan yang ada
+        rata_rata_rating = db.query(func.avg(models.Ulasan.rating)).filter(
+            models.Ulasan.id_umkm == id_umkm_target
+        ).scalar()
+
+        # Update nilai kolom rating di tabel UMKM (gunakan pembulatan atau default jika None)
+        rating_baru = round(rata_rata_rating, 1) if rata_rata_rating else 0.0
+        
+        db.query(models.UMKM).filter(
+            models.UMKM.id_umkm == id_umkm_target
+        ).update({"rating": rating_baru})
+        
+        db.commit()
+
         return db_ulasan
 
 ulasan_repository = CRUDUlasan()

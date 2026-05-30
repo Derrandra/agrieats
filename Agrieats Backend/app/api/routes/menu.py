@@ -35,6 +35,15 @@ def lihat_menu_saya(
     daftar_menu = menu_repository.get_all_by_umkm(db=db, id_umkm=current_user.id_akun)
     return daftar_menu
 
+@router.get("/search", response_model=List[menu_schema.MenuResponse])
+def cari_menu(
+    keyword: str,
+    db: Session = Depends(get_db),
+    current_user: models.Akun = Depends(get_current_user)
+):
+    daftar_menu = menu_repository.search_menu(db=db, keyword=keyword)
+    return daftar_menu
+
 @router.get("/toko/{id_umkm}", response_model=List[menu_schema.MenuResponse])
 def lihat_etalase_toko(
     id_umkm: str,
