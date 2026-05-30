@@ -21,3 +21,10 @@ class MenuResponse(MenuBase):
 
     class Config:
         from_attributes = True
+
+class MenuUpdate(BaseModel):
+    nama_menu: Optional[str] = None
+    harga: Optional[int] = None
+    ketersediaan: Optional[bool] = None
+    tag_makanan: Optional[str] = None
+    foto_menu: Optional[str] = None

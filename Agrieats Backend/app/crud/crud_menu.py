@@ -25,5 +25,22 @@ class CRUDMenu:
     
     def get_all_by_umkm(self, db: Session, id_umkm: str):
         return db.query(models.Menu).filter(models.Menu.id_umkm == id_umkm).all()
+    
+    def get_by_id(self, db: Session, id_menu: str):
+        return db.query(models.Menu).filter(models.Menu.id_menu == id_menu).first()
+    
+    def update(self, db: Session, db_menu: models.Menu, menu_update: menu_schema.MenuUpdate):
+        update_data = menu_update.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_menu, key, value)
+
+        db.commit()
+        db.refresh(db_menu)
+        return db_menu
+
+    def delete(self, db: Session, db_menu: models.Menu):
+        db.delete(db_menu)
+        db.commit()
+        return True
 
 menu_repository = CRUDMenu()
