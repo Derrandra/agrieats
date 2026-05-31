@@ -96,4 +96,53 @@ class CRUDPreOrder:
             "total_pesanan_selesai": total_pesanan,
             "total_pendapatan": total_pendapatan
         }
+        
+# MAHASISWA: Membatalkan PO (Hanya jika status masih "Menunggu Validasi")
+    def cancel_po_by_mahasiswa(self, db: Session, id_po: str, nim: str):
+        db_po = db.query(models.PreOrder).filter(
+            models.PreOrder.id_po == id_po,
+            models.PreOrder.nim == nim
+        ).first()
+
+        if not db_po:
+            raise HTTPException(status_code=404, detail="Data Pre-Order tidak ditemukan.")
+
+        if db_po.status != "Menunggu Validasi":
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Pre-Order tidak bisa dibatalkan karena status sudah '{db_po.status}'."
+            )
+
+        db_po.status = "Pesanan Dibatalkan"
+        db.commit()
+        db.refresh(db_po)
+        return db_po
+
+    # UMKM: Konfirmasi Terima / Tolak PO
+    def konfirmasi_po_by_umkm(self, db: Session, id_po: str, id_umkm: str, tindakan: str):
+        db_po = db.query(models.PreOrder).filter(models.PreOrder.id_po == id_po).first()
+
+        if not db_po:
+            raise HTTPException(status_code=404, detail="Data Pre-Order tidak ditemukan.")
+
+        # Proteksi: Pastikan makanan di dalam PO ini emang punya UMKM yang lagi login
+        # is_owner = any(item.menu_terkait.id_umkm == id_umkm for item in db_po.items)
+        # if not is_owner:
+        #   raise HTTPException(status_code=403, detail="Anda tidak berhak memproses pesanan toko lain.")
+
+        if db_po.status != "Menunggu Validasi":
+            raise HTTPException(status_code=400, detail="Pesanan ini sudah diproses sebelumnya.")
+
+        # Ubah status sesuai dengan keinginan alur lu
+        if tindakan.upper() == "TERIMA":
+            db_po.status = "Pesanan Diterima"
+        elif tindakan.upper() == "TOLAK":
+            db_po.status = "Pesanan Ditolak"
+        else:
+            raise HTTPException(status_code=400, detail="Tindakan tidak valid. Gunakan 'TERIMA' atau 'TOLAK'.")
+
+        db.commit()
+        db.refresh(db_po)
+        return db_po
+    
 po_repository = CRUDPreOrder()
