@@ -28,20 +28,17 @@ function Menu() {
   async function loadMenus() {
     try {
       // Mengambil data dari backend
-      const response = await api.get("/menus"); 
+      const response = await api.get("/api/menu/saya"); 
       setMenus(response.data);
     } catch (error) {
       console.log("Error fetching menus dari backend:", error);
-      
-      // Fallback sementara menggunakan localStorage jika backend belum siap
-      const savedMenus = JSON.parse(localStorage.getItem("menus")) || [];
-      setMenus(savedMenus);
+      setMenus([]); // Kosongkan jika gagal atau belum ada data
     }
   }
 
   // Filter daftar menu berdasarkan input pencarian
   const filteredMenus = menus.filter((menu) =>
-    menu.name?.toLowerCase().includes(search.toLowerCase())
+    menu.nama_menu?.toLowerCase().includes(search.toLowerCase())
   );
 
   // Menghitung data untuk paginasi
@@ -79,7 +76,7 @@ function Menu() {
 
           <button
             onClick={() => navigate("/menu/add")}
-            className="bg-green-700 hover:bg-green-800 text-white px-6 py-3 rounded-xl flex items-center gap-2 font-semibold"
+            className="bg-green-700 hover:bg-green-800 text-white px-6 py-3 rounded-xl flex items-center gap-2 font-semibold transition-colors"
           >
             <Plus size={20} />
             Tambah Menu
@@ -96,14 +93,14 @@ function Menu() {
           <div className="bg-white p-6 rounded-2xl shadow">
             <h2 className="text-gray-500">Total Menu Aktif</h2>
             <p className="text-4xl font-bold text-green-700 mt-3">
-              {menus.filter((menu) => menu.stock > 0).length}
+              {menus.filter((menu) => menu.ketersediaan).length}
             </p>
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow">
             <h2 className="text-gray-500">Stok Kosong</h2>
             <p className="text-4xl font-bold text-red-500 mt-3">
-              {menus.filter((menu) => menu.stock <= 0).length}
+              {menus.filter((menu) => !menu.ketersediaan).length}
             </p>
           </div>
         </div>
@@ -114,12 +111,12 @@ function Menu() {
           <div className="relative">
             <input
               type="text"
-              placeholder="Search menu..."
+              placeholder="Cari menu..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-80 px-5 py-3 rounded-xl border outline-none focus:border-green-700"
+              className="w-80 px-5 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 transition-colors"
             />
-            <Search size={20} className="absolute right-4 top-3.5 text-gray-500" />
+            <Search size={20} className="absolute right-4 top-3.5 text-gray-400" />
           </div>
         </div>
 
@@ -136,32 +133,32 @@ function Menu() {
           {currentMenus.length > 0 ? (
             currentMenus.map((menu) => (
               <div
-                key={menu.id}
+                key={menu.id_menu}
                 className="grid grid-cols-5 items-center p-5 border-b hover:bg-gray-50 transition-all text-center"
               >
                 <div className="flex justify-center">
                   <img
-                    src={menu.images?.[0] || menu.image || "https://via.placeholder.com/150"}
-                    alt={menu.name}
-                    className="w-20 h-20 object-cover rounded-xl shadow-sm"
+                    src={menu.foto_menu ? `http://127.0.0.1:8000${menu.foto_menu}` : "https://via.placeholder.com/150?text=No+Image"}
+                    alt={menu.nama_menu}
+                    className="w-20 h-20 object-cover rounded-xl shadow-sm border border-gray-100"
                   />
                 </div>
 
                 <p
-                  onClick={() => navigate(`/menu/edit/${menu.id}`)}
+                  onClick={() => navigate(`/menu/edit/${menu.id_menu}`)}
                   className="font-semibold text-lg cursor-pointer hover:text-green-700 underline underline-offset-4"
                 >
-                  {menu.name}
+                  {menu.nama_menu}
                 </p>
 
                 <div className="flex justify-center">
                   <span className="bg-gray-100 px-4 py-2 rounded-lg text-sm border border-gray-200">
-                    {menu.category}
+                    {menu.id_kategori || "-"}
                   </span>
                 </div>
 
                 <div className="flex justify-center">
-                  {menu.stock > 0 ? (
+                  {menu.ketersediaan ? (
                     <span className="bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm font-medium">
                       Tersedia
                     </span>
@@ -173,7 +170,7 @@ function Menu() {
                 </div>
 
                 <p className="font-bold text-green-700 text-lg">
-                  Rp {Number(menu.price).toLocaleString("id-ID")}
+                  Rp {Number(menu.harga).toLocaleString("id-ID")}
                 </p>
               </div>
             ))
@@ -211,7 +208,7 @@ function Menu() {
                   className={`px-4 py-1 rounded border font-bold ${
                     currentPage === pageNumber
                       ? "bg-[#3d603a] text-white border-[#3d603a]"
-                      : "bg-white text-black border-gray-300 hover:bg-gray-100"
+                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
                   }`}
                 >
                   {pageNumber}

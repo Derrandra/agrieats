@@ -8,7 +8,8 @@ import OrderDetailModal from "../../components/umkm/modal/OrderDetailModal";
 
 function Orders() {
   const [storeOpen, setStoreOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState("pending");
+  // Default tab disesuaikan langsung ke status awal database
+  const [activeTab, setActiveTab] = useState("Menunggu Validasi");
   const [orders, setOrders] = useState([]);
 
   // Modal Detail State
@@ -26,36 +27,40 @@ function Orders() {
 
   async function loadOrders() {
     try {
-      const response = await api.get("/orders");
-      setOrders(response.data);
-    } catch (error) {
-      console.log("Menggunakan fallback localStorage");
-      const savedOrders = JSON.parse(localStorage.getItem("orders")) || [];
-      if (savedOrders.length > 0) {
-        setOrders(savedOrders);
-      } else {
-        // Data Dummy yang strukturnya sudah diperbaiki
-        const defaultOrders = [
-          {
-            id: 1,
-            customer: "Budi Santoso",
-            items: [{ name: "Nasi Goreng", price: 15000 }],
-            total: "15000",
-            status: "pending",
-            declineReason: "",
-          },
-          {
-            id: 2,
-            customer: "Andi Wijaya",
-            items: [{ name: "Mie Ayam", price: 12000 }],
-            total: "12000",
-            status: "pending",
-            declineReason: "",
-          },
-        ];
-        localStorage.setItem("orders", JSON.stringify(defaultOrders));
-        setOrders(defaultOrders);
+      // 1. Ambil daftar menu toko ini dulu untuk mencocokkan ID dengan Nama Menu
+      let menuMap = {};
+      try {
+        const menuRes = await api.get("/api/menu/saya");
+        menuRes.data.forEach((menu) => {
+          menuMap[menu.id_menu] = menu.nama_menu;
+        });
+      } catch (menuErr) {
+        console.error("Gagal memuat daftar menu untuk mapping nama:", menuErr);
       }
+
+      const response = await api.get("/api/po/umkm");
+      
+      const dataAsli = Array.isArray(response.data) ? response.data : [];
+
+      const mappedOrders = dataAsli.map((order) => ({
+        id: order.id_po || "ID_UNKNOWN",
+        customer: `NIM: ${order.nim || "Tidak diketahui"}`, 
+        total: order.total_harga || 0,
+        status: order.status || "Menunggu Validasi",
+        declineReason: "", 
+        items: (Array.isArray(order.items) ? order.items : []).map((item) => ({
+          name: item.id_menu 
+            ? menuMap[item.id_menu] || `Menu (ID: ${String(item.id_menu).substring(0, 8)})` 
+            : "Menu Tidak Diketahui", 
+          price: item.harga_satuan || 0,
+          qty: item.kuantitas || 1
+        }))
+      }));
+
+      setOrders(mappedOrders);
+    } catch (error) {
+      console.error("Gagal memuat pesanan:", error);
+      setOrders([]);
     }
   }
 
@@ -70,16 +75,18 @@ function Orders() {
 
   async function handleAcceptOrder(orderId) {
     try {
-      await api.put(`/orders/${orderId}/status`, { status: "processing" });
-    } catch (error) {
-      console.log("Fallback: update lokal");
-    }
+      await api.put(`/api/po/${orderId}/status`, { status: "Diproses" });
 
-    const updatedOrders = orders.map((order) =>
-      order.id === orderId ? { ...order, status: "processing" } : order
-    );
-    setOrders(updatedOrders);
-    localStorage.setItem("orders", JSON.stringify(updatedOrders));
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order.id === orderId ? { ...order, status: "Diproses" } : order
+        )
+      );
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert("Gagal menerima pesanan.");
+    }
   }
 
   function openDeclineModal(orderId) {
@@ -94,26 +101,43 @@ function Orders() {
     }
 
     try {
-      await api.put(`/orders/${selectedOrderId}/status`, { 
-        status: "rejected", 
-        declineReason 
+      await api.put(`/api/po/${selectedOrderId}/status`, { 
+        status: "Ditolak" 
       });
-    } catch (error) {
-      console.log("Fallback: update lokal");
-    }
 
-    const updatedOrders = orders.map((order) =>
-      order.id === selectedOrderId
-        ? { ...order, status: "rejected", declineReason }
-        : order
-    );
-    
-    setOrders(updatedOrders);
-    localStorage.setItem("orders", JSON.stringify(updatedOrders));
-    
-    setShowDeclineModal(false);
-    setDeclineReason("");
-    setSelectedOrderId(null);
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order.id === selectedOrderId
+            ? { ...order, status: "Ditolak", declineReason } 
+            : order
+        )
+      );
+      
+      setShowDeclineModal(false);
+      setDeclineReason("");
+      setSelectedOrderId(null);
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert("Gagal menolak pesanan.");
+    }
+  }
+
+  // FUNGSI BARU: Untuk menyelesaikan pesanan
+  async function handleCompleteOrder(orderId) {
+    try {
+      await api.put(`/api/po/${orderId}/status`, { status: "Selesai" });
+
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order.id === orderId ? { ...order, status: "Selesai" } : order
+        )
+      );
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert("Gagal menyelesaikan pesanan.");
+    }
   }
 
   const filteredOrders = orders.filter((order) => order.status === activeTab);
@@ -134,9 +158,9 @@ function Orders() {
         {/* TABS */}
         <div className="flex gap-4 mb-8">
           <button
-            onClick={() => setActiveTab("pending")}
+            onClick={() => setActiveTab("Menunggu Validasi")}
             className={`px-6 py-3 rounded-xl font-bold transition-all ${
-              activeTab === "pending"
+              activeTab === "Menunggu Validasi"
                 ? "bg-[#15803d] text-white shadow-md"
                 : "bg-white text-gray-600 hover:bg-gray-50"
             }`}
@@ -144,9 +168,9 @@ function Orders() {
             Pesanan Masuk
           </button>
           <button
-            onClick={() => setActiveTab("processing")}
+            onClick={() => setActiveTab("Diproses")}
             className={`px-6 py-3 rounded-xl font-bold transition-all ${
-              activeTab === "processing"
+              activeTab === "Diproses"
                 ? "bg-[#15803d] text-white shadow-md"
                 : "bg-white text-gray-600 hover:bg-gray-50"
             }`}
@@ -154,9 +178,19 @@ function Orders() {
             Sedang Diproses
           </button>
           <button
-            onClick={() => setActiveTab("rejected")}
+            onClick={() => setActiveTab("Selesai")}
             className={`px-6 py-3 rounded-xl font-bold transition-all ${
-              activeTab === "rejected"
+              activeTab === "Selesai"
+                ? "bg-[#15803d] text-white shadow-md"
+                : "bg-white text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            Selesai
+          </button>
+          <button
+            onClick={() => setActiveTab("Ditolak")}
+            className={`px-6 py-3 rounded-xl font-bold transition-all ${
+              activeTab === "Ditolak"
                 ? "bg-[#15803d] text-white shadow-md"
                 : "bg-white text-gray-600 hover:bg-gray-50"
             }`}
@@ -178,6 +212,7 @@ function Orders() {
                 onDetail={() => openOrderModal(order)}
                 onAccept={() => handleAcceptOrder(order.id)}
                 onDecline={() => openDeclineModal(order.id)}
+                onComplete={() => handleCompleteOrder(order.id)} 
               />
             ))
           ) : (
@@ -195,6 +230,7 @@ function Orders() {
         order={selectedOrder}
         onAccept={handleAcceptOrder}
         onDecline={openDeclineModal}
+        onComplete={handleCompleteOrder}
       />
 
       {/* DECLINE MODAL */}

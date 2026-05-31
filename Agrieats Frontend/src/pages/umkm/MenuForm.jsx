@@ -11,22 +11,25 @@ function MenuForm() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
 
-  // status toko
+  // Status toko
   const [storeOpen, setStoreOpen] = useState(true);
 
   function updateStoreStatus() {
     setStoreOpen(!storeOpen);
   }
 
-  // state form menu
+  // State form menu
   const [menuName, setMenuName] = useState("");
   const [category, setCategory] = useState("");
-  const [stock, setStock] = useState(1);
+  const [isAvailable, setIsAvailable] = useState(true);
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
-  const [images, setImages] = useState([]);
+  
+  // State untuk gambar
+  const [images, setImages] = useState([]); // Untuk preview gambar di layar
+  const [imageFile, setImageFile] = useState(null); // Untuk file fisik yang dikirim ke backend
 
-  // load data kalau masuk ke mode edit
+  // Load data kalau masuk ke mode edit
   useEffect(() => {
     if (!isEditMode) return;
     loadMenu();
@@ -34,105 +37,87 @@ function MenuForm() {
 
   async function loadMenu() {
     try {
-      /*
-      =================================
-      BACKEND
-      GET /menus/:id
-      =================================
-      */
-      const response = await api.get(`/menus/${id}`);
+      const response = await api.get(`/api/menu/${id}`);
       const menu = response.data;
 
-      setMenuName(menu.name);
-      setCategory(menu.category);
-      setStock(menu.stock);
-      setPrice(menu.price);
-      setDescription(menu.description);
-      setImages(menu.images || []);
+      setMenuName(menu.nama_menu);
+      setCategory(menu.id_kategori || "");
+      setIsAvailable(menu.ketersediaan === true);
+      setPrice(menu.harga);
+      setDescription(menu.tag_makanan || "");
+      if (menu.foto_menu) {
+        // Jika ada URL foto dari backend, pasang untuk preview
+        setImages([`http://127.0.0.1:8000${menu.foto_menu}`]); 
+      }
     } catch (error) {
-      console.log(error);
-
-      // fallback frontend
-      const dummyMenu = {
-        name: "Nasi Goreng",
-        category: "Makanan Berat",
-        stock: 10,
-        price: "15000",
-        description: "Dummy menu",
-        images: ["https://images.unsplash.com/photo-1504674900247-0877df9cc836"],
-      };
-
-      setMenuName(dummyMenu.name);
-      setCategory(dummyMenu.category);
-      setStock(dummyMenu.stock);
-      setPrice(dummyMenu.price);
-      setDescription(dummyMenu.description);
-      setImages(dummyMenu.images);
+      console.log("Gagal load data menu", error);
     }
   }
 
-  // handle upload gambar
+  // Handle upload gambar
   function handleImageUpload(event) {
     const files = Array.from(event.target.files);
-    const imageUrls = files.map((file) => URL.createObjectURL(file));
-    setImages(imageUrls);
+    if (files.length > 0) {
+      // Simpan file asli ke state imageFile
+      setImageFile(files[0]);
+      
+      // Buat URL preview
+      const imageUrls = files.map((file) => URL.createObjectURL(file));
+      setImages(imageUrls);
+    }
   }
 
-  // simpan menu baru atau update menu yang diedit
+  // Simpan menu baru atau update menu yang diedit
   async function handleSaveMenu() {
-    if (!menuName || !category || !price) {
-      alert("Lengkapi data menu terlebih dahulu");
+    if (!menuName || !price) {
+      alert("Lengkapi nama menu dan harga terlebih dahulu");
       return;
     }
 
-    const menuData = {
-      name: menuName,
-      category,
-      stock,
-      price,
-      description,
-      images,
-    };
+    // Gunakan FormData untuk mengirim file dan teks sekaligus
+    const formData = new FormData();
+    formData.append("nama_menu", menuName);
+    formData.append("harga", price);
+    
+    if (category) formData.append("id_kategori", category);
+    formData.append("ketersediaan", isAvailable ? "true" : "false");
+    if (description) formData.append("tag_makanan", description);
+    
+    if (imageFile) {
+      formData.append("foto", imageFile);
+    }
 
     try {
       if (isEditMode) {
-        /*
-        ======================
-        PUT /menus/:id
-        ======================
-        */
-        await api.put(`/menus/${id}`, menuData);
+        await api.put(`/api/menu/${id}`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        alert("Menu berhasil diupdate!");
       } else {
-        /*
-        ======================
-        POST /menus
-        ======================
-        */
-        await api.post("/menus", menuData);
+        await api.post("/api/menu/", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        alert("Menu baru berhasil ditambahkan!");
       }
-      navigate("/menu");
+      navigate("/dashboard");
     } catch (error) {
-      console.log(error);
-      alert("Backend belum tersedia");
+      console.error(error.response?.data || error.message);
+      alert("Gagal menyimpan menu. Cek console.");
     }
   }
 
-  // hapus menu dari local storage
+  // Hapus menu
   async function handleDeleteMenu() {
-    const confirmDelete = window.confirm("Yakin hapus menu?");
+    const confirmDelete = window.confirm("Yakin hapus menu ini?");
     if (!confirmDelete) return;
 
     try {
-      /*
-      ======================
-      DELETE /menus/:id
-      ======================
-      */
-      await api.delete(`/menus/${id}`);
-      navigate("/menu");
+      await api.delete(`/api/menu/${id}`);
+      alert("Menu dihapus");
+      navigate("/dashboard");
     } catch (error) {
       console.log(error);
-      alert("Backend belum tersedia");
+      alert("Gagal menghapus menu.");
     }
   }
 
@@ -143,17 +128,18 @@ function MenuForm() {
       <div className="flex-1 ml-64 p-10">
         <Topbar storeOpen={storeOpen} updateStoreStatus={updateStoreStatus} />
 
-        {/* bagian header */}
+        {/* Bagian header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold">
             {isEditMode ? "Edit Menu" : "Tambah Menu"}
           </h1>
         </div>
 
-        {/* konten utama form */}
+        {/* Konten utama form */}
         <div className="bg-white rounded-2xl shadow p-8">
           <div className="grid grid-cols-2 gap-10">
-            {/* kolom kiri: gambar */}
+            
+            {/* Kolom kiri: Gambar */}
             <div>
               <div className="w-full h-96 bg-gray-100 rounded-2xl overflow-hidden mb-5">
                 {images.length > 0 ? (
@@ -164,50 +150,40 @@ function MenuForm() {
                   />
                 ) : (
                   <div className="w-full h-full flex justify-center items-center text-gray-400">
-                    No Image
+                    Belum ada gambar
                   </div>
                 )}
               </div>
 
-              {/* daftar preview gambar */}
-              <div className="flex gap-3">
-                {images.map((image, index) => (
-                  <img
-                    key={index}
-                    src={image}
-                    alt="preview"
-                    className="w-24 h-24 object-cover rounded-xl"
-                  />
-                ))}
-              </div>
-
-              {/* tombol upload gambar */}
-              <label className="mt-5 bg-green-700 hover:bg-green-800 text-white px-5 py-3 rounded-xl inline-block cursor-pointer">
-                Upload Image
-                <input type="file" multiple hidden onChange={handleImageUpload} />
+              {/* Tombol upload gambar */}
+              <label className="mt-5 bg-green-700 hover:bg-green-800 text-white px-5 py-3 rounded-xl inline-block cursor-pointer transition-colors">
+                Pilih Gambar
+                <input type="file" accept="image/*" hidden onChange={handleImageUpload} />
               </label>
             </div>
 
-            {/* kolom kanan: input form */}
+            {/* Kolom kanan: Input form */}
             <div className="space-y-6">
               <div>
-                <label className="font-semibold">Nama Menu</label>
+                <label className="font-semibold text-gray-700">Nama Menu</label>
                 <input
                   type="text"
                   value={menuName}
                   onChange={(e) => setMenuName(e.target.value)}
-                  className="w-full border rounded-xl p-3 mt-2 outline-none"
+                  className="w-full border border-gray-300 rounded-xl p-3 mt-2 outline-none focus:border-green-700 transition-colors"
+                  placeholder="Contoh: Nasi Goreng Spesial"
                 />
               </div>
 
               <div>
-                <label className="font-semibold">Kategori</label>
+                <label className="font-semibold text-gray-700">Kategori</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full border rounded-xl p-3 mt-2 outline-none"
+                  className="w-full border border-gray-300 rounded-xl p-3 mt-2 outline-none focus:border-green-700 transition-colors bg-white"
                 >
                   <option value="">Pilih Kategori</option>
+                  {/* Pastikan value ini sesuai dengan ID atau teks yang diharapkan database */}
                   <option value="Makanan Berat">Makanan Berat</option>
                   <option value="Minuman">Minuman</option>
                   <option value="Snack">Snack</option>
@@ -215,73 +191,68 @@ function MenuForm() {
               </div>
 
               <div>
-                <label className="font-semibold">Stock</label>
-                <div className="flex items-center gap-3 mt-2">
-                  <button
-                    onClick={() => setStock(stock > 0 ? stock - 1 : 0)}
-                    className="bg-gray-200 p-3 rounded-lg"
-                  >
-                    <Minus size={18} />
-                  </button>
-                  <div className="px-8 py-3 bg-gray-100 rounded-lg">{stock}</div>
-                  <button
-                    onClick={() => setStock(stock + 1)}
-                    className="bg-green-700 text-white p-3 rounded-lg"
-                  >
-                    <Plus size={18} />
-                  </button>
-                </div>
+                <label className="font-semibold text-gray-700">Status Ketersediaan</label>
+                <select
+                  value={isAvailable ? "true" : "false"}
+                  onChange={(e) => setIsAvailable(e.target.value === "true")}
+                  className="w-full border border-gray-300 rounded-xl p-3 mt-2 outline-none focus:border-green-700 transition-colors bg-white"
+                >
+                  <option value="true">Tersedia</option>
+                  <option value="false">Habis</option>
+                </select>
               </div>
 
               <div>
-                <label className="font-semibold">Harga</label>
+                <label className="font-semibold text-gray-700">Harga (Rp)</label>
                 <input
                   type="number"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  className="w-full border rounded-xl p-3 mt-2 outline-none"
+                  className="w-full border border-gray-300 rounded-xl p-3 mt-2 outline-none focus:border-green-700 transition-colors"
+                  placeholder="Contoh: 15000"
                 />
               </div>
             </div>
           </div>
 
-          {/* deskripsi */}
+          {/* Deskripsi */}
           <div className="mt-10">
-            <label className="font-semibold">Deskripsi Menu</label>
+            <label className="font-semibold text-gray-700">Deskripsi / Tag Makanan</label>
             <textarea
-              rows="6"
+              rows="4"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full border rounded-2xl p-5 mt-2 outline-none resize-none"
+              className="w-full border border-gray-300 rounded-2xl p-5 mt-2 outline-none focus:border-green-700 transition-colors resize-none"
+              placeholder="Tambahkan deskripsi singkat atau tag (misal: pedas, manis, gurih)..."
             />
           </div>
 
-          {/* tombol action */}
+          {/* Tombol Action */}
           <div className="flex justify-between items-center mt-10">
             <div>
               {isEditMode && (
                 <button
                   onClick={handleDeleteMenu}
-                  className="bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-xl flex items-center gap-2"
+                  className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 px-5 py-3 rounded-xl flex items-center gap-2 transition-colors font-medium"
                 >
                   <Trash2 size={18} />
-                  Delete Menu
+                  Hapus Menu
                 </button>
               )}
             </div>
 
             <div className="flex gap-4">
               <button
-                onClick={() => navigate("/menu")}
-                className="bg-gray-300 hover:bg-gray-400 px-6 py-3 rounded-xl"
+                onClick={() => navigate("/dashboard")}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-xl transition-colors font-medium"
               >
-                Cancel
+                Batal
               </button>
               <button
                 onClick={handleSaveMenu}
-                className="bg-green-700 hover:bg-green-800 text-white px-6 py-3 rounded-xl"
+                className="bg-green-700 hover:bg-green-800 text-white px-8 py-3 rounded-xl transition-colors font-medium shadow-sm"
               >
-                {isEditMode ? "Update Menu" : "Tambah Menu"}
+                {isEditMode ? "Simpan Perubahan" : "Tambah Menu"}
               </button>
             </div>
           </div>

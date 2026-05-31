@@ -1,54 +1,41 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { loginUser, getCurrentUser } from "../../services/auth"; 
 
 function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(""); 
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
+    setIsLoading(true);
 
-    // 1. Ambil data pengguna dari localStorage (hasil register)
-    const users = JSON.parse(localStorage.getItem("users")) || [];
-    
-    // 2. Cari pengguna yang email dan passwordnya cocok
-    const foundUser = users.find(
-      (u) => u.email === email && u.password === password
-    );
+    try {
+      await loginUser(email, password);
 
-    if (foundUser) {
-      // 3. Simpan sesi login
-      localStorage.setItem("currentUser", JSON.stringify(foundUser));
+      const user = await getCurrentUser();
       
-      // 4. Arahkan berdasarkan peran
-      // (Memakai .peran sesuai database, tapi sedia .role sebagai cadangan)
-      const userRole = foundUser.peran || foundUser.role; 
+      // Simpan data user ke localStorage agar UI lain (seperti Navbar) bisa menampilkan nama/fotonya
+      localStorage.setItem("currentUser", JSON.stringify(user));
+      const userRole = user.peran;
       
       if (userRole === "PENGELOLA") {
         navigate("/kantin/dashboard");
       } else if (userRole === "UMKM") {
-        navigate("/dashboard");
+        navigate("/dashboard"); // Sesuaikan path ini dengan router di App.jsx milikmu
       } else if (userRole === "MAHASISWA") {
         navigate("/home");
       } else {
-        // Default jika perannya kosong atau tidak dikenali
         navigate("/home"); 
       }
-    } else {
-      // Bantuan Data Dummy untuk Testing Cepat (jika belum mendaftar)
-      if (email === "mahasiswa@ipb.ac.id" && password === "12345678") {
-        localStorage.setItem("currentUser", JSON.stringify({ name: "Mahasiswa IPB", email, peran: "MAHASISWA" }));
-        navigate("/home");
-      } else if (email === "umkm@agrieats.com" && password === "12345678") {
-        localStorage.setItem("currentUser", JSON.stringify({ name: "Risol GC", email, peran: "UMKM" }));
-        navigate("/dashboard");
-      } else if (email === "pengelola@agrieats.com" && password === "12345678") {
-        localStorage.setItem("currentUser", JSON.stringify({ name: "Admin Kantin", email, peran: "PENGELOLA" }));
-        navigate("/kantin/dashboard");
-      } else {
-        alert("Email atau password salah! Silakan register terlebih dahulu jika belum punya akun.");
-      }
+      
+    } catch (error) {
+      console.error("Gagal login:", error);
+      alert("Gagal Masuk! Pastikan ID/NIM dan Password sesuai dengan yang ada di Database.");
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -62,13 +49,13 @@ function Login() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">Email</label>
+            <label className="block text-gray-700 font-semibold mb-2">NIM / Email</label>
             <input
-              type="email"
+              type="text" // Ubah jadi text agar mahasiswa bisa input NIM
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="Masukkan email Anda"
+              placeholder="Masukkan NIM (Mahasiswa) atau Email (UMKM)"
               className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 transition-colors"
             />
           </div>
@@ -87,9 +74,11 @@ function Login() {
 
           <button
             type="submit"
-            className="w-full bg-[#15803d] hover:bg-green-800 text-white font-bold py-4 rounded-xl mt-4 transition-all shadow-md text-lg"
+            disabled={isLoading}
+            className={`w-full text-white font-bold py-4 rounded-xl mt-4 transition-all shadow-md text-lg 
+              ${isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#15803d] hover:bg-green-800'}`}
           >
-            Masuk
+            {isLoading ? "Memeriksa Data..." : "Masuk"}
           </button>
         </form>
 
@@ -99,16 +88,6 @@ function Login() {
             Daftar di sini
           </Link>
         </p>
-
-        {/* Info akun dummy untuk kemudahan testing */}
-        <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800">
-          <p className="font-bold mb-1">Akun Testing (Pass: 12345678):</p>
-          <ul className="list-disc pl-4 space-y-0.5">
-            <li>mahasiswa@ipb.ac.id (Mahasiswa)</li>
-            <li>umkm@agrieats.com (UMKM)</li>
-            <li>pengelola@agrieats.com (Pengelola)</li>
-          </ul>
-        </div>
       </div>
     </div>
   );

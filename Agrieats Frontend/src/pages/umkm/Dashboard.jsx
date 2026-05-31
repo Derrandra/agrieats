@@ -19,7 +19,7 @@ function Dashboard() {
   // Data State
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
-  const [summary, setSummary] = useState({ revenue: "Rp 0", totalOrders: 0, incomingOrders: 0 });
+  const [summary, setSummary] = useState({ revenue: "Rp 0", totalOrders: 0 });
 
   // Modal Detail State
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -43,45 +43,74 @@ function Dashboard() {
 
   async function loadOrders() {
     try {
-      const response = await api.get("/orders");
-      setOrders(response.data);
-    } catch (error) {
-      const savedOrders = JSON.parse(localStorage.getItem("orders")) || [];
-      if (savedOrders.length > 0) {
-        setOrders(savedOrders);
-      } else {
-        const defaultOrders = [
-          { id: 1, customer: "Budi Santoso", items: [{ name: "Nasi Goreng", price: 15000 }], total: "15000", status: "pending", declineReason: "" },
-          { id: 2, customer: "Andi Wijaya", items: [{ name: "Mie Ayam", price: 12000 }], total: "12000", status: "pending", declineReason: "" },
-        ];
-        localStorage.setItem("orders", JSON.stringify(defaultOrders));
-        setOrders(defaultOrders);
+      // 1. Ambil daftar menu toko ini dulu untuk mencocokkan ID dengan Nama Menu
+      let menuMap = {};
+      try {
+        const menuRes = await api.get("/api/menu/saya");
+        menuRes.data.forEach((menu) => {
+          menuMap[menu.id_menu] = menu.nama_menu;
+        });
+      } catch (menuErr) {
+        console.error("Gagal memuat daftar menu untuk mapping nama:", menuErr);
       }
+
+      // 2. Ambil dari Pesanan Masuk UMKM
+      const response = await api.get("/api/po/umkm");
+      const dataAsli = Array.isArray(response.data) ? response.data : [];
+
+      const mappedOrders = dataAsli.map((order) => ({
+        id: order.id_po || "ID_UNKNOWN",
+        customer: `NIM: ${order.nim || "Tidak diketahui"}`, 
+        total: order.total_harga || 0,
+        status: order.status || "Menunggu Validasi",
+        declineReason: "", 
+        items: (Array.isArray(order.items) ? order.items : []).map((item) => ({
+          // 3. Cocokkan ID dengan nama asli
+          name: item.id_menu 
+            ? menuMap[item.id_menu] || `Menu (ID: ${String(item.id_menu).substring(0, 8)})` 
+            : "Menu Tidak Diketahui", 
+          price: item.harga_satuan || 0,
+          qty: item.kuantitas || 1
+        }))
+      }));
+
+      setOrders(mappedOrders);
+    } catch (error) {
+      console.error("Gagal memuat pesanan:", error);
+      setOrders([]); 
     }
   }
 
   async function loadDashboardSummary() {
     try {
-      const response = await api.get("/dashboard/summary");
-      setSummary(response.data);
+      const response = await api.get("/api/umkm/statistik");
+      
+      const pendapatan = response.data.total_pendapatan || 0;
+      const pesanan = response.data.total_pesanan || 0;
+
+      const formatRupiah = new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+        minimumFractionDigits: 0
+      }).format(pendapatan);
+
+      setSummary({ 
+        revenue: formatRupiah, 
+        totalOrders: pesanan,
+      });
     } catch (error) {
-      setSummary({ revenue: "Rp 1.250.000", totalOrders: 424, incomingOrders: 42 });
+      console.error("Gagal memuat statistik:", error);
+      setSummary({ revenue: "Rp 0", totalOrders: 0 });
     }
   }
 
   async function loadProducts() {
     try {
-      const response = await api.get("/menus");
+      const response = await api.get("/api/menu/saya");
       setProducts(response.data);
     } catch (error) {
-      // Pastikan ada 5 item di fallback agar grid terisi 5 produk + 1 tambah menu = 6 kotak simetris
-      setProducts([
-        { id: 1, name: "Nasi Goreng", price: "15.000", stock: true },
-        { id: 2, name: "Mie Goreng", price: "12.000", stock: false },
-        { id: 3, name: "Kwetiau", price: "18.000", stock: true },
-        { id: 4, name: "Ayam Geprek", price: "20.000", stock: true },
-        { id: 5, name: "Es Teh", price: "5.000", stock: true },
-      ]);
+      console.error("Gagal memuat menu:", error);
+      setProducts([]); 
     }
   }
 
@@ -92,7 +121,6 @@ function Dashboard() {
     } catch (error) {}
   }
 
-  // LOGIKA TERIMA/TOLAK PESANAN (Sinkron dengan halaman Orders)
   function openOrderModal(order) {
     setSelectedOrder(order);
     setIsModalOpen(true);
@@ -100,16 +128,23 @@ function Dashboard() {
 
   async function handleAcceptOrder(orderId) {
     try {
-      await api.put(`/orders/${orderId}/status`, { status: "processing" });
-    } catch (error) {}
+      await api.put(`/api/po/${orderId}/status`, { status: "Diproses" });
 
-    const updatedOrders = orders.map((order) =>
-      order.id === orderId ? { ...order, status: "processing" } : order
-    );
-    setOrders(updatedOrders);
-    localStorage.setItem("orders", JSON.stringify(updatedOrders));
+      // Update state lokal
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order.id === orderId ? { ...order, status: "Diproses" } : order
+        )
+      );
+      
+      // Update statistik & daftar pesanan secara otomatis
+      await loadDashboardSummary();
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert("Gagal menerima pesanan.");
+    }
   }
-
   function openDeclineModal(orderId) {
     setSelectedOrderId(orderId);
     setShowDeclineModal(true);
@@ -121,22 +156,50 @@ function Dashboard() {
       return;
     }
     try {
-      await api.put(`/orders/${selectedOrderId}/status`, { status: "rejected", declineReason });
-    } catch (error) {}
-
-    const updatedOrders = orders.map((order) =>
-      order.id === selectedOrderId ? { ...order, status: "rejected", declineReason } : order
-    );
-    
-    setOrders(updatedOrders);
-    localStorage.setItem("orders", JSON.stringify(updatedOrders));
-    
-    setShowDeclineModal(false);
-    setDeclineReason("");
-    setSelectedOrderId(null);
+      await api.put(`/api/po/${selectedOrderId}/status`, { status: "Ditolak" });
+      
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order.id === selectedOrderId ? { ...order, status: "Ditolak", declineReason } : order
+        )
+      );
+      
+      // Update statistik agar jumlah pesanan masuk berkurang
+      await loadDashboardSummary();
+      
+      setShowDeclineModal(false);
+      setDeclineReason("");
+      setSelectedOrderId(null);
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert("Gagal menolak pesanan.");
+    }
   }
 
-  const pendingOrders = orders.filter((order) => order.status === "pending");
+  // Fungsi tambahan untuk menyelesaikan pesanan dari dashboard
+  async function handleCompleteOrder(orderId) {
+    try {
+      await api.put(`/api/po/${orderId}/status`, { status: "Selesai" });
+      
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order.id === orderId ? { ...order, status: "Selesai" } : order
+        )
+      );
+      
+      // Update pendapatan dan statistik secara instan
+      await loadDashboardSummary();
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert("Gagal menyelesaikan pesanan.");
+    }
+  }
+
+  // Filter khusus Dashboard
+  const pesananBaru = orders.filter((order) => order.status === "Menunggu Validasi");
+  const pesananAktif = orders.filter((order) => order.status === "Menunggu Validasi" || order.status === "Diproses");
 
   return (
     <div className="flex min-h-screen bg-[#F2F0F0]">
@@ -149,7 +212,7 @@ function Dashboard() {
         <div className="grid grid-cols-3 gap-5">
           <SummaryCard title="Total Pendapatan" value={summary.revenue} />
           <SummaryCard title="Total Pesanan" value={summary.totalOrders} />
-          <SummaryCard title="Pesanan Masuk" value={pendingOrders.length} />
+          <SummaryCard title="Pesanan Masuk" value={pesananBaru.length} />
         </div>
 
         {/* PESANAN AKTIF */}
@@ -158,7 +221,7 @@ function Dashboard() {
             <h1 className="text-2xl font-bold">Pesanan Aktif</h1>
             <div className="flex items-center gap-3">
               <div className="bg-red-500 text-white text-sm px-3 py-1 rounded-full font-semibold">
-                {pendingOrders.length} Baru
+                {pesananBaru.length} Baru
               </div>
               <p onClick={() => navigate("/orders")} className="text-gray-500 cursor-pointer hover:text-green-700 font-medium">
                 Selengkapnya
@@ -167,16 +230,18 @@ function Dashboard() {
           </div>
 
           <div className="space-y-5">
-            {pendingOrders.length > 0 ? (
-              pendingOrders.slice(0, 5).map((order) => (
+            {pesananAktif.length > 0 ? (
+              pesananAktif.slice(0, 5).map((order) => (
                 <OrderCard
                   key={order.id}
                   customer={order.customer}
                   items={order.items}
                   status={order.status}
+                  declineReason={order.declineReason}
                   onDetail={() => openOrderModal(order)}
                   onAccept={() => handleAcceptOrder(order.id)}
                   onDecline={() => openDeclineModal(order.id)}
+                  onComplete={() => handleCompleteOrder(order.id)}
                 />
               ))
             ) : (
@@ -196,9 +261,15 @@ function Dashboard() {
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-5">
+            <div className="grid grid-cols-3 gap-5">
             {products.slice(0, 5).map((product) => (
-              <ProductCard key={product.id} name={product.name} price={product.price} stock={product.stock} />
+              <ProductCard 
+                key={product.id_menu}
+                name={product.nama_menu}
+                price={product.harga}
+                stock={product.ketersediaan}
+                image={product.foto_menu ? `http://127.0.0.1:8000${product.foto_menu}` : null}
+              />
             ))}
             
             <div onClick={() => navigate("/menu/add")} className="bg-white rounded-2xl shadow flex flex-col justify-center items-center cursor-pointer hover:scale-105 transition-all border-2 border-dashed border-green-700 min-h-[220px]">
@@ -215,6 +286,7 @@ function Dashboard() {
         order={selectedOrder} 
         onAccept={handleAcceptOrder}
         onDecline={openDeclineModal}
+        onComplete={handleCompleteOrder}
       />
 
       <NotificationModal isOpen={isNotifOpen} onClose={() => setIsNotifOpen(false)} notifications={notifications} />

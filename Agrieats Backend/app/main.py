@@ -3,6 +3,8 @@ from app.db.database import engine, Base
 from app.db import models 
 from app.api.routes import mahasiswa, auth, umkm, menu, po, ulasan, kategori, cart
 from fastapi.middleware.cors import CORSMiddleware
+import os
+from fastapi.staticfiles import StaticFiles
 
 Base.metadata.create_all(bind=engine)
 
@@ -11,6 +13,9 @@ app = FastAPI(
     description="Backend untuk platform AgriEats IPB",
     version="1.0.0"
 )
+
+os.makedirs("app/static/images", exist_ok=True)
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 origins = [
     "http://localhost:5173",

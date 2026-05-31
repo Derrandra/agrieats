@@ -28,8 +28,8 @@ def create_mahasiswa(db: Session, mahasiswa: user.MahasiswaCreate):
 def get_mahasiswa_by_nim(db: Session, nim: str):
     return db.query(models.Mahasiswa).filter(models.Mahasiswa.nim == nim).first()
 
-# def get_mahasiswa_by_email(db: Session, email: str):
-#     return db.query(models.Mahasiswa).filter(models.Mahasiswa.email == email).first()
+def get_mahasiswa_by_email(db: Session, email: str):
+    return db.query(models.Mahasiswa).filter(models.Mahasiswa.email == email).first()
 
 def get_akun_by_email(db: Session, email: str):
     return db.query(models.Akun).filter(models.Akun.email == email).first()

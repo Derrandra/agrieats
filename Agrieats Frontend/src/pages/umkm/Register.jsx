@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import api from "../../services/api"; // Sesuaikan path jika letak file services/api.js berbeda
 
 function Register() {
   const navigate = useNavigate();
   
   // State untuk menyembunyikan/menampilkan role lanjutan
   const [showAdvancedRoles, setShowAdvancedRoles] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // State mencakup SEMUA kolom dari database
   const [formData, setFormData] = useState({
@@ -36,40 +38,67 @@ function Register() {
   // Fungsi rahasia untuk memunculkan role admin/umkm
   function toggleAdvancedRoles() {
     if (!showAdvancedRoles) {
-      // Saat mode mitra dibuka, otomatis pindahkan peran ke UMKM
       setFormData({ ...formData, peran: "UMKM" });
     } else {
-      // Saat ditutup, kembalikan secara default ke MAHASISWA
       setFormData({ ...formData, peran: "MAHASISWA" });
     }
     setShowAdvancedRoles(!showAdvancedRoles);
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
+    setIsLoading(true);
     
-    let payload = {
-      username: formData.username,
-      email: formData.email,
-      password: formData.password,
-      peran: formData.peran
-    };
+    try {
+      if (formData.peran === "MAHASISWA") {
+        const payloadMahasiswa = {
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          nim: formData.nim,
+          prodi: formData.prodi,
+          telepon: formData.telepon
+        };
+        // Sesuaikan dengan endpoint registrasi mahasiswa di backend-mu
+        await api.post("/api/mahasiswa/register", payloadMahasiswa); 
 
-    if (formData.peran === "MAHASISWA") {
-      payload = { ...payload, nim: formData.nim, prodi: formData.prodi, telepon: formData.telepon };
-    } else if (formData.peran === "PENGELOLA") {
-      payload = { ...payload, nama_u_kantin: formData.nama_u_kantin, kontak_pengelola: formData.kontak_pengelola, nama_pj_usaha: formData.nama_pj_usaha };
-    } else if (formData.peran === "UMKM") {
-      payload = { ...payload, id_pengelola: formData.id_pengelola, nama_umkm: formData.nama_umkm, lokasi: formData.lokasi, jam_operasional: formData.jam_operasional, deskripsi: formData.deskripsi };
+      } else if (formData.peran === "UMKM") {
+        const payloadUmkm = {
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          nama_umkm: formData.nama_umkm,
+          lokasi: formData.lokasi,
+          jam_operasional: formData.jam_operasional,
+          deskripsi: formData.deskripsi,
+          id_pengelola: formData.id_pengelola
+        };
+        // Endpoint registrasi UMKM sesuai dengan di backend
+        await api.post("/api/umkm/register", payloadUmkm);
+
+      } else if (formData.peran === "PENGELOLA") {
+        const payloadPengelola = {
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          nama_u_kantin: formData.nama_u_kantin,
+          kontak_pengelola: formData.kontak_pengelola,
+          nama_pj_usaha: formData.nama_pj_usaha
+        };
+        // Sesuaikan dengan endpoint registrasi pengelola di backend-mu
+        await api.post("/api/pengelola/register", payloadPengelola); 
+      }
+
+      alert("Registrasi berhasil! Silakan login menggunakan akun baru Anda.");
+      navigate("/"); // Kembali ke halaman login
+    } catch (error) {
+      console.error("Gagal melakukan registrasi:", error);
+      // Menangkap pesan error dari backend (misal: "Email sudah terdaftar")
+      const errorMessage = error.response?.data?.detail || "Terjadi kesalahan saat mendaftar. Silakan coba lagi.";
+      alert(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
-
-    const existingUsers = JSON.parse(localStorage.getItem("users")) || [];
-    existingUsers.push(payload);
-    localStorage.setItem("users", JSON.stringify(existingUsers));
-    
-    console.log("Data yang akan dikirim ke Backend:", payload);
-    alert("Registrasi berhasil! Silakan login.");
-    navigate("/");
   }
 
   return (
@@ -202,13 +231,14 @@ function Register() {
 
           <button 
             type="submit" 
+            disabled={isLoading}
             className={`w-full text-white font-bold py-4 rounded-xl mt-2 transition-all text-lg shadow-md ${
               formData.peran === "UMKM" ? "bg-yellow-500 hover:bg-yellow-600" :
               formData.peran === "PENGELOLA" ? "bg-blue-600 hover:bg-blue-700" :
               "bg-[#15803d] hover:bg-green-800"
-            }`}
+            } ${isLoading ? "opacity-70 cursor-not-allowed" : ""}`}
           >
-            Selesaikan Pendaftaran
+            {isLoading ? "Sedang Mendaftar..." : "Selesaikan Pendaftaran"}
           </button>
         </form>
 
