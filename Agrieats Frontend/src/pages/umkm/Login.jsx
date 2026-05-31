@@ -13,26 +13,37 @@ function Login() {
     setIsLoading(true);
 
     try {
+      console.log("1. Mengirim request login ke server dengan identitas:", email);
       await loginUser(email, password);
-
+      
+      console.log("2. Login API berhasil! Mengambil data profil user (me)...");
       const user = await getCurrentUser();
       
-      // Simpan data user ke localStorage agar UI lain (seperti Navbar) bisa menampilkan nama/fotonya
+      console.log("3. Data user berhasil ditarik:", user);
+      
+      // Simpan data user ke localStorage
       localStorage.setItem("currentUser", JSON.stringify(user));
-      const userRole = user.peran;
+      
+      // Gunakan toUpperCase() agar aman dari masalah huruf besar/kecil
+      const userRole = user.peran ? user.peran.toUpperCase() : "";
+      console.log("4. Role user terdeteksi sebagai:", userRole);
       
       if (userRole === "PENGELOLA") {
+        console.log("5. Mengarahkan ke Dashboard Pengelola...");
         navigate("/kantin/dashboard");
       } else if (userRole === "UMKM") {
-        navigate("/dashboard"); // Sesuaikan path ini dengan router di App.jsx milikmu
+        console.log("5. Mengarahkan ke Dashboard UMKM...");
+        navigate("/dashboard"); 
       } else if (userRole === "MAHASISWA") {
+        console.log("5. Mengarahkan ke Home Mahasiswa...");
         navigate("/home");
       } else {
+        console.log("Role tidak dikenali, melempar ke /home default");
         navigate("/home"); 
       }
       
     } catch (error) {
-      console.error("Gagal login:", error);
+      console.error("GAGAL LOGIN. Detail Error:", error);
       alert("Gagal Masuk! Pastikan ID/NIM dan Password sesuai dengan yang ada di Database.");
     } finally {
       setIsLoading(false);
@@ -49,14 +60,14 @@ function Login() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">NIM / Email</label>
+            <label className="block text-gray-700 font-semibold mb-2">NIM / Email / Username</label>
             <input
-              type="text" // Ubah jadi text agar mahasiswa bisa input NIM
+              type="text" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="Masukkan NIM (Mahasiswa) atau Email (UMKM)"
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 transition-colors"
+              placeholder="Masukkan identitas login Anda"
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 transition-colors bg-gray-50 focus:bg-white"
             />
           </div>
 
@@ -68,7 +79,7 @@ function Login() {
               onChange={(e) => setPassword(e.target.value)}
               required
               placeholder="Masukkan password Anda"
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 transition-colors"
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 transition-colors bg-gray-50 focus:bg-white"
             />
           </div>
 
@@ -76,7 +87,7 @@ function Login() {
             type="submit"
             disabled={isLoading}
             className={`w-full text-white font-bold py-4 rounded-xl mt-4 transition-all shadow-md text-lg 
-              ${isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#15803d] hover:bg-green-800'}`}
+              ${isLoading ? 'bg-green-400 cursor-not-allowed' : 'bg-[#15803d] hover:bg-green-800'}`}
           >
             {isLoading ? "Memeriksa Data..." : "Masuk"}
           </button>
