@@ -79,3 +79,35 @@ def ubah_status_pesanan(
         raise HTTPException(status_code=403, detail="Anda tidak berhak mengubah status pesanan toko lain.")
     
     return po_repository.update_status(db=db, db_po=db_po, new_status=status_update.status)
+
+# ENDPOINT CANCEL UNTUK MAHASISWA
+@router.put("/{id_po}/cancel", response_model=po_schema.POResponse)
+def mahasiswa_cancel_pesanan(
+    id_po: str,
+    db: Session = Depends(get_db),
+    current_user: models.Akun = Depends(get_current_user)
+):
+    
+    if current_user.peran != "MAHASISWA":
+        raise HTTPException(status_code=403, detail="Akses ditolak. Fitur ini khusus mahasiswa.")
+            
+    return po_repository.cancel_po_by_mahasiswa(db=db, id_po=id_po, nim=current_user.id_akun)
+
+
+# ENDPOINT KONFIRMASI (TERIMA/TOLAK) UNTUK UMKM
+@router.put("/{id_po}/konfirmasi", response_model=po_schema.POResponse)
+def umkm_konfirmasi_pesanan(
+    id_po: str,
+    tindakan: str,  # Isikan query param di Swagger: TERIMA atau TOLAK
+    db: Session = Depends(get_db),
+    current_user: models.Akun = Depends(get_current_user)
+):
+    if current_user.peran != "UMKM":
+        raise HTTPException(status_code=403, detail="Akses ditolak. Hanya penjual yang dapat memproses pesanan.")
+        
+    return po_repository.konfirmasi_po_by_umkm(
+        db=db, 
+        id_po=id_po, 
+        id_umkm=current_user.id_akun, 
+        tindakan=tindakan
+    )

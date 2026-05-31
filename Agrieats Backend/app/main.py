@@ -42,6 +42,7 @@ app.include_router(ulasan.router, prefix="/api/ulasan", tags=["Ulasan dan Rating
 
 app.include_router(kategori.router, prefix="/api/umkm", tags=["Kategori Menu UMKM"])
 app.include_router(cart.router, prefix="/api/cart", tags=["Keranjang Belanja Mahasiswa"])
+
 @app.get("/")
 def root():
     return {"status": "Migration Successful"}
