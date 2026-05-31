@@ -24,3 +24,10 @@ htmlcov/
 Thumbs.db
 ./node_modules
 node_modules/
+# Abaikan node_modules di folder frontend dari level root
+Agrieats Frontend/node_modules/
+Agrieats Frontend/package-lock.json
+
+# Ini buat jaga-jaga kalau di backend ada juga
+**/node_modules/
+**/.env

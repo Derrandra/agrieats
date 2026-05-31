@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, Boolean, Integer, Numeric, TIMESTAMP, For
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from .database import Base
+import uuid
 
 # SUPERCLASS
 class Akun(Base):
@@ -50,6 +51,8 @@ class UMKM(Akun):
     # Relasi ke Menu
     daftar_menu = relationship("Menu", back_populates="pemilik")
 
+    # Relasi dari UMKM ke Kategori Menu milik toko tersebut
+    daftar_kategori = relationship("KategoriMenu", back_populates="merchant", cascade="all, delete-orphan")
 
 # SUBCLASS: MAHASISWA
 class Mahasiswa(Akun):
@@ -62,6 +65,19 @@ class Mahasiswa(Akun):
     __mapper_args__ = {"polymorphic_identity": "MAHASISWA"}
     riwayat_pesanan = relationship("PreOrder", back_populates="pembeli")
 
+# TABEL KATEGORI MENU
+class KategoriMenu(Base):
+    __tablename__ = "kategori_menu"
+
+    id_kategori = Column(String(50), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    id_umkm = Column(String(20), ForeignKey("umkm.id_umkm", ondelete="CASCADE"), nullable=False)
+    nama_kategori = Column(String(20), nullable=False) # Isinya 'Makanan', 'Minuman', atau 'Cemilan'
+
+    # Relasi balik ke UMKM
+    merchant = relationship("UMKM", back_populates="daftar_kategori")
+    # Relasi ke Menu-menu yang memakai kategori ini
+    daftar_menu_kategori = relationship("Menu", back_populates="kategori")
+    
 # TABEL MENU
 class Menu(Base):
     __tablename__ = "menu"
@@ -69,6 +85,10 @@ class Menu(Base):
     id_menu = Column(String(10), primary_key=True, index=True)
     id_umkm = Column(String(20), ForeignKey("umkm.id_umkm", ondelete="CASCADE"), nullable=False)
     nama_menu = Column(String(100), nullable=False)
+    
+    # Hubungkan tabel Menu ke tabel KategoriMenu
+    id_kategori = Column(String(50), ForeignKey("kategori_menu.id_kategori", ondelete="SET NULL"), nullable=True)
+    
     harga = Column(Integer, nullable=False)
     ketersediaan = Column(Boolean, default=False)
     tag_makanan = Column(String(50))
@@ -79,6 +99,9 @@ class Menu(Base):
     pemilik = relationship("UMKM", back_populates="daftar_menu")
     # Relasi ke DetailPO
     dalam_pesanan = relationship("DetailPO", back_populates="menu_terkait")
+
+    # Relasi balik ke KategoriMenu
+    kategori = relationship("KategoriMenu", back_populates="daftar_menu_kategori")
 
 # TABEL PRE-ORDER
 class PreOrder(Base):
