@@ -153,3 +153,19 @@ class Ulasan(Base):
     pesanan_terkait = relationship("PreOrder", back_populates="ulasan_pesanan")
 
     __table_args__ = (CheckConstraint('rating >= 1 AND rating <= 5', name='check_rating_range'),)
+    
+# TABEL KERANJANG BELANJA (CART)
+class KeranjangBelanja(Base):
+    __tablename__ = "keranjang_belanja"
+
+    id_keranjang = Column(Integer, primary_key=True, autoincrement=True)
+    nim = Column(String(20), ForeignKey("mahasiswa.nim", ondelete="CASCADE"), nullable=False)
+    id_menu = Column(String(10), ForeignKey("menu.id_menu", ondelete="CASCADE"), nullable=False)
+    kuantitas = Column(Integer, nullable=False, default=1)
+
+    # Relasi ke Mahasiswa dan Menu agar ORM SQLAlchemy bisa manggil datanya langsung
+    pembeli = relationship("Mahasiswa")
+    menu_terpilih = relationship("Menu")
+
+    # Validasi level database biar mahasiswa gak bisa input kuantitas 0 atau minus
+    __table_args__ = (CheckConstraint('kuantitas > 0', name='check_kuantitas_keranjang_positif'),)
