@@ -3,14 +3,16 @@ import {
   Route
 } from "react-router-dom";
 
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Profile from "./pages/Profile";
+import Login from "./pages/umkm/Login";
+import Register from "./pages/umkm/Register";
+import Profile from "./pages/umkm/Profile";
+import Dashboard from "./pages/umkm/Dashboard";
+import Orders from "./pages/umkm/Orders";
+import Menu from "./pages/umkm/Menu";
+import MenuForm from "./pages/umkm/MenuForm";
 
-import Dashboard from "./pages/Dashboard";
-import Orders from "./pages/Orders";
-import Menu from "./pages/Menu";
-import MenuForm from "./pages/MenuForm";
+import DashboardKantin from "./pages/kantin/DashboardKantin";
+import UmkmManagement from "./pages/kantin/UmkmManagement";
 
 function App() {
 
@@ -64,6 +66,16 @@ function App() {
       <Route
         path="/menu/edit/:id"
         element={<MenuForm />}
+      />
+      
+      <Route
+        path="/kantin/dashboard"
+        element={<DashboardKantin />}
+      />
+
+      <Route 
+        path="/kantin/umkm"
+        element={<UmkmManagement />}
       />
 
     </Routes>
