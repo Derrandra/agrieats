@@ -58,3 +58,22 @@ class StatistikUMKM(BaseModel):
 
     class Config:
         from_attributes = True
+
+# PENGELOLA KANTIN
+class PengelolaBase(BaseModel):
+    username: str
+    email: EmailStr
+    nama_u_kantin: str
+    kontak_pengelola: str
+    nama_pj_usaha: str
+
+class PengelolaCreate(PengelolaBase):
+    password: str = Field(..., min_length=8, max_length=72)
+
+class PengelolaResponse(PengelolaBase):
+    id_akun: str 
+    peran: str
+    created_at: datetime | None = None
+
+    class Config:
+        from_attributes = True

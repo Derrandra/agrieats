@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from app.db.database import engine, Base
 from app.db import models 
-from app.api.routes import mahasiswa, auth, umkm, menu, po, ulasan, kategori, cart
+from app.api.routes import mahasiswa, auth, umkm, menu, po, ulasan, kategori, cart, pengelola
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from fastapi.staticfiles import StaticFiles
@@ -42,7 +42,7 @@ app.include_router(ulasan.router, prefix="/api/ulasan", tags=["Ulasan dan Rating
 
 app.include_router(kategori.router, prefix="/api/umkm", tags=["Kategori Menu UMKM"])
 app.include_router(cart.router, prefix="/api/cart", tags=["Keranjang Belanja Mahasiswa"])
-
+app.include_router(pengelola.router, prefix="/api/pengelola", tags=["Pengelola"])
 @app.get("/")
 def root():
     return {"status": "Migration Successful"}

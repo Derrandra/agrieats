@@ -1,26 +1,21 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Upload, Save, Trash2, FileSignature } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, Save, Store, MapPin, Clock, User } from "lucide-react";
 import api from "../../services/api";
 
 import SidebarKantin from "../../components/kantin/SidebarKantin";
 import TopbarKantin from "../../components/kantin/TopbarKantin";
 
 function UmkmEdit() {
+  const { id } = useParams(); // Mengambil ID dari URL
   const navigate = useNavigate();
-  const { id } = useParams();
 
-  const [formData, setFormData] = useState({
-    name: "",
-    ownerName: "",
-    phone: "",
-    category: "Makanan Berat",
-    description: "",
-    status: "Menunggu Kontrak",
-  });
-
-  const [imagePreview, setImagePreview] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [umkm, setUmkm] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // State khusus untuk field yang bisa diedit (Jam Operasional)
+  const [jamOperasional, setJamOperasional] = useState("");
 
   useEffect(() => {
     loadUmkmDetail();
@@ -28,106 +23,52 @@ function UmkmEdit() {
 
   async function loadUmkmDetail() {
     try {
-      // BACA DARI LOCAL STORAGE (Fallback)
-      const savedUmkms = JSON.parse(localStorage.getItem("umkms")) || [];
-      const umkm = savedUmkms.find((u) => u.id.toString() === id);
+      // Karena backend belum ada endpoint GET by ID khusus, 
+      // kita ambil semua UMKM binaan lalu cari yang ID-nya cocok
+      const response = await api.get("/api/pengelola/umkm");
+      const foundUmkm = response.data.find((item) => item.id_umkm === id);
 
-      if (umkm) {
-        setFormData({
-          name: umkm.name || "",
-          ownerName: umkm.owner || "", 
-          phone: umkm.phone || "",
-          category: umkm.category || "Makanan Berat",
-          description: umkm.description || "",
-          status: umkm.status || "Menunggu Kontrak",
-        });
-        setImagePreview(umkm.image || null);
+      if (foundUmkm) {
+        setUmkm(foundUmkm);
+        setJamOperasional(foundUmkm.jam_operasional || "");
       } else {
-        alert("Data UMKM tidak ditemukan!");
+        alert("Data UMKM tidak ditemukan di kantin Anda.");
         navigate("/kantin/umkm");
       }
     } catch (error) {
-      console.error("Gagal memuat detail UMKM:", error);
-    }
-  }
-
-  function handleChange(e) {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  }
-
-  function handleImageChange(e) {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  }
-
-  // Fungsi untuk menyetujui kontrak awal
-  function handleApproveContract() {
-    setFormData((prev) => ({ ...prev, status: "Aktif" }));
-  }
-
-  // Fungsi untuk toggle aktif/nonaktif
-  function handleToggleStatus() {
-    setFormData((prev) => ({
-      ...prev,
-      status: prev.status === "Aktif" ? "Nonaktif" : "Aktif",
-    }));
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      // SIMULASI UPDATE LOCAL STORAGE
-      const savedUmkms = JSON.parse(localStorage.getItem("umkms")) || [];
-      const updatedUmkms = savedUmkms.map((u) => {
-        if (u.id.toString() === id) {
-          return {
-            ...u,
-            name: formData.name,
-            owner: formData.ownerName,
-            category: formData.category,
-            status: formData.status, // Akan menyimpan status terbaru dari toggle/approval
-            image: imagePreview || u.image,
-            description: formData.description,
-            phone: formData.phone,
-          };
-        }
-        return u;
-      });
-
-      localStorage.setItem("umkms", JSON.stringify(updatedUmkms));
-
-      setTimeout(() => {
-        navigate("/kantin/umkm");
-      }, 500);
-    } catch (error) {
-      console.error("Gagal menyimpan perubahan:", error);
+      console.error("Gagal mengambil detail UMKM:", error);
+    } finally {
       setIsLoading(false);
     }
   }
 
-  async function handleDelete() {
-    const confirmDelete = window.confirm(`Yakin ingin menghapus UMKM ${formData.name}?`);
-    if (!confirmDelete) return;
-
+  // Fungsi untuk menyimpan perubahan Jam Operasional ke Backend
+  async function handleUpdateSchedule(e) {
+    e.preventDefault();
+    setIsSaving(true);
     try {
-      const savedUmkms = JSON.parse(localStorage.getItem("umkms")) || [];
-      const filteredUmkms = savedUmkms.filter((u) => u.id.toString() !== id);
-      localStorage.setItem("umkms", JSON.stringify(filteredUmkms));
-
-      navigate("/kantin/umkm");
+      await api.put(`/api/umkm/${id}/schedule`, {
+        jam_operasional: jamOperasional
+      });
+      alert("Jam operasional UMKM berhasil diperbarui!");
+      loadUmkmDetail(); // Refresh data terbaru
     } catch (error) {
-      console.error("Gagal menghapus UMKM:", error);
+      console.error("Gagal mengupdate jadwal:", error);
+      alert("Gagal memperbarui jam operasional.");
+    } finally {
+      setIsSaving(false);
     }
   }
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen bg-[#F2F0F0] items-center justify-center">
+        <p className="text-xl font-semibold text-gray-500">Memuat Data UMKM...</p>
+      </div>
+    );
+  }
+
+  if (!umkm) return null;
 
   return (
     <div className="flex min-h-screen bg-[#F2F0F0]">
@@ -137,143 +78,107 @@ function UmkmEdit() {
         <TopbarKantin />
 
         {/* HEADER & TOMBOL KEMBALI */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center gap-4 mb-8 animate-fade-in">
           <button
             onClick={() => navigate("/kantin/umkm")}
             className="p-3 bg-white rounded-xl shadow-sm hover:bg-gray-50 transition-all border border-gray-200"
           >
             <ArrowLeft size={24} className="text-gray-700" />
           </button>
-          <div className="flex-1 flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold">Detail & Edit UMKM</h1>
-              <p className="text-gray-500 mt-1">Perbarui informasi atau status kontrak mitra</p>
-            </div>
-            
-            {/* Status Badge Dinamis di Header */}
-            <div className={`px-4 py-2 rounded-lg font-bold text-sm border transition-colors ${
-              formData.status === "Aktif" ? "bg-green-100 text-green-700 border-green-200" :
-              formData.status === "Menunggu Kontrak" ? "bg-yellow-100 text-yellow-700 border-yellow-200" :
-              "bg-red-100 text-red-600 border-red-200"
-            }`}>
-              {formData.status}
-            </div>
+          <div>
+            <h1 className="text-3xl font-bold">Detail Profil UMKM</h1>
+            <p className="text-gray-500 mt-1">Informasi lengkap tentang mitra toko ini</p>
           </div>
         </div>
 
-        {/* FORM EDIT UMKM */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-8">
-            <div className="grid grid-cols-2 gap-8">
+        <div className="bg-white rounded-3xl shadow p-10 animate-fade-in">
+          
+          {/* Header Info UMKM */}
+          <div className="flex items-center gap-6 border-b pb-8 mb-8">
+            <div className="w-24 h-24 bg-green-100 text-green-700 rounded-2xl flex items-center justify-center">
+              <Store size={48} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold">{umkm.nama_umkm}</h1>
+              <div className="flex gap-3 mt-3">
+                <span className={`px-3 py-1 rounded-md text-sm font-bold ${umkm.status_buka ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                  {umkm.status_buka ? "Status: Aktif" : "Status: Menunggu Kontrak"}
+                </span>
+                <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-md text-sm font-semibold flex items-center gap-1">
+                  ⭐ {umkm.rating || "0.0"} Rating
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-12">
+            
+            {/* DATA FIX (Hanya Baca) */}
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold text-gray-800 border-l-4 border-green-700 pl-3">Data Pemilik & Lokasi</h2>
               
-              {/* KOLOM KIRI: Data Profil */}
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Nama UMKM</label>
-                  <input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 focus:ring-1 focus:ring-green-700 transition-all" />
-                </div>
-
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Nama Pemilik (Owner)</label>
-                  <input type="text" name="ownerName" value={formData.ownerName} onChange={handleChange} required className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 focus:ring-1 focus:ring-green-700 transition-all" />
-                </div>
-
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Nomor Telepon / WhatsApp</label>
-                  <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 focus:ring-1 focus:ring-green-700 transition-all" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">Kategori</label>
-                    <select name="category" value={formData.category} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 focus:ring-1 focus:ring-green-700 transition-all bg-white">
-                      <option value="Makanan Berat">Makanan Berat</option>
-                      <option value="Camilan">Camilan</option>
-                      <option value="Minuman">Minuman</option>
-                    </select>
-                  </div>
-                  
-                  {/* LOGIKA PENGATURAN STATUS KONTRAK & TOGGLE */}
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">Status Operasional</label>
-                    
-                    <div className="h-[50px] flex items-center">
-                      {formData.status === "Menunggu Kontrak" ? (
-                        <button
-                          type="button"
-                          onClick={handleApproveContract}
-                          className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 font-semibold text-sm transition-all"
-                        >
-                          <FileSignature size={16} />
-                          Setujui Kontrak
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={handleToggleStatus}
-                            className={`w-14 h-7 rounded-full flex items-center px-1 transition-all ${
-                              formData.status === "Aktif" ? "bg-green-600 justify-end" : "bg-gray-400 justify-start"
-                            }`}
-                          >
-                            <div className="w-5 h-5 bg-white rounded-full shadow-sm" />
-                          </button>
-                          <span className={`font-semibold ${formData.status === "Aktif" ? "text-green-700" : "text-gray-500"}`}>
-                            {formData.status}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    
-                  </div>
-                </div>
+              <div>
+                <label className="text-gray-500 text-sm font-semibold flex items-center gap-2 mb-1">
+                  <User size={16} /> Username Pemilik
+                </label>
+                <p className="text-lg font-medium text-gray-800 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                  {umkm.username}
+                </p>
               </div>
 
-              {/* KOLOM KANAN: Foto & Deskripsi */}
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Foto / Logo UMKM</label>
-                  <div className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 transition-all relative overflow-hidden">
-                    {imagePreview ? (
-                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6 text-gray-500">
-                        <Upload size={32} className="mb-3" />
-                        <p className="text-sm font-semibold">Klik untuk upload foto baru</p>
-                      </div>
-                    )}
-                    <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                  </div>
-                </div>
+              <div>
+                <label className="text-gray-500 text-sm font-semibold flex items-center gap-2 mb-1">
+                  <MapPin size={16} /> Lokasi Stand
+                </label>
+                <p className="text-lg font-medium text-gray-800 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                  {umkm.lokasi}
+                </p>
+              </div>
 
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Deskripsi Singkat</label>
-                  <textarea name="description" value={formData.description} onChange={handleChange} rows="4" className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 focus:ring-1 focus:ring-green-700 transition-all resize-none"></textarea>
-                </div>
+              <div>
+                <label className="text-gray-500 text-sm font-semibold mb-1 block">
+                  Deskripsi Jualan
+                </label>
+                <p className="text-gray-700 bg-gray-50 p-4 rounded-xl border border-gray-100 min-h-[100px]">
+                  {umkm.deskripsi || "Tidak ada deskripsi."}
+                </p>
               </div>
             </div>
 
-            {/* TOMBOL AKSI */}
-            <div className="flex justify-between items-center border-t border-gray-200 pt-6 mt-2">
-              <button
-                type="button"
-                onClick={handleDelete}
-                className="bg-white border-2 border-red-500 text-red-500 hover:bg-red-50 px-6 py-3 rounded-xl flex items-center gap-2 font-bold transition-all"
-              >
-                <Trash2 size={20} />
-                Hapus UMKM
-              </button>
+            {/* FORM UPDATE (Bisa Diedit Pengelola) */}
+            <div>
+              <h2 className="text-xl font-bold text-gray-800 border-l-4 border-blue-600 pl-3 mb-6">Pengaturan Jam Operasional</h2>
+              
+              <form onSubmit={handleUpdateSchedule} className="bg-blue-50 p-6 rounded-2xl border border-blue-100">
+                <label className="text-blue-800 font-semibold flex items-center gap-2 mb-3">
+                  <Clock size={18} /> Jam Operasional Saat Ini
+                </label>
+                
+                <input
+                  type="text"
+                  value={jamOperasional}
+                  onChange={(e) => setJamOperasional(e.target.value)}
+                  placeholder="Contoh: 08:00 - 16:00"
+                  required
+                  className="w-full border border-blue-300 p-4 rounded-xl outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 mb-4 bg-white"
+                />
+                
+                <p className="text-sm text-blue-600 mb-6">
+                  *Sebagai Pengelola Kantin, Anda berhak mengubah jam operasional UMKM ini jika diperlukan.
+                </p>
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="bg-green-700 hover:bg-green-800 text-white px-8 py-3 rounded-xl flex items-center gap-2 font-bold text-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {isLoading ? "Menyimpan..." : <><Save size={20} /> Simpan Perubahan</>}
-              </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                >
+                  {isSaving ? "Menyimpan..." : <><Save size={20} /> Update Jam Operasional</>}
+                </button>
+              </form>
             </div>
+            
+          </div>
 
-          </form>
         </div>
       </div>
     </div>

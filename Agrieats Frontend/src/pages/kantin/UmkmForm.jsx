@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Upload, Save } from "lucide-react";
 import api from "../../services/api";
@@ -9,16 +9,29 @@ import TopbarKantin from "../../components/kantin/TopbarKantin";
 function UmkmForm() {
   const navigate = useNavigate();
 
-  const [formData, setFormData] = useState({
-    name: "",
-    ownerName: "",
-    phone: "",
-    category: "Makanan Berat",
-    description: "",
-  });
-
+  const [pengelolaId, setPengelolaId] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Sesuaikan dengan skema backend Pydantic
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+    nama_umkm: "",
+    lokasi: "",
+    jam_operasional: "",
+    deskripsi: "",
+  });
+
+  useEffect(() => {
+    // Ambil ID Pengelola dari localStorage untuk disisipkan saat register UMKM
+    const user = JSON.parse(localStorage.getItem("currentUser"));
+    if (user) {
+      const idNya = user.id_akun || user.id_pengelola;
+      setPengelolaId(idNya);
+    }
+  }, []);
 
   function handleChange(e) {
     const { name, value } = e.target;
@@ -44,39 +57,23 @@ function UmkmForm() {
     setIsLoading(true);
 
     try {
-      /* // TODO: KONEKSI BACKEND
-      const data = new FormData();
-      data.append("name", formData.name);
-      data.append("ownerName", formData.ownerName);
-      data.append("phone", formData.phone);
-      data.append("category", formData.category);
-      data.append("description", formData.description);
-      // data.append("image", fileGambar);
-
-      await api.post("/umkms", data);
-      */
-
-      // SIMULASI SIMPAN LOKAL (FALLBACK)
-      const newUmkm = {
-        id: Date.now(), // Buat ID unik sementara
-        image: imagePreview || "https://via.placeholder.com/150", // Gunakan preview gambar atau placeholder
-        name: formData.name,
-        category: formData.category,
-        owner: formData.ownerName, // Disamakan dengan properti owner di UmkmManagement
-        status: "Menunggu Kontrak", // Status default untuk UMKM baru
+      // Gabungkan data form dengan ID Pengelola
+      const payload = {
+        ...formData,
+        id_pengelola: pengelolaId,
       };
 
-      // Ambil data yang ada di local storage, lalu tambahkan data baru
-      const existingUmkms = JSON.parse(localStorage.getItem("umkms")) || [];
-      existingUmkms.push(newUmkm);
-      localStorage.setItem("umkms", JSON.stringify(existingUmkms));
+      // Tembak langsung ke API Register UMKM di backend
+      await api.post("/api/umkm/register", payload);
 
-      setTimeout(() => {
-        navigate("/kantin/umkm");
-      }, 1000);
+      alert("UMKM berhasil ditambahkan!");
+      navigate("/kantin/umkm"); // Kembali ke halaman tabel UMKM
       
     } catch (error) {
       console.error("Gagal menambahkan UMKM:", error);
+      const errorMessage = error.response?.data?.detail || "Terjadi kesalahan saat menyimpan data.";
+      alert(errorMessage);
+    } finally {
       setIsLoading(false);
     }
   }
@@ -107,16 +104,63 @@ function UmkmForm() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-8">
             
             <div className="grid grid-cols-2 gap-8">
-              {/* KOLOM KIRI: Data Profil */}
+              {/* KOLOM KIRI: Data Login & Info Utama */}
               <div className="space-y-6">
+                
+                <h2 className="font-bold text-lg text-green-700 border-b pb-2">1. Akses Login</h2>
+                
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Nama UMKM
-                  </label>
+                  <label className="block text-gray-700 font-semibold mb-2">Username Pemilik</label>
                   <input
                     type="text"
-                    name="name"
-                    value={formData.name}
+                    name="username"
+                    value={formData.username}
+                    onChange={handleChange}
+                    required
+                    placeholder="Contoh: budi_risol"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 focus:ring-1 focus:ring-green-700 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Email Pemilik</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    placeholder="Contoh: budi@gmail.com"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 focus:ring-1 focus:ring-green-700 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Password Sementara</label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    placeholder="Minimal 8 karakter"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 focus:ring-1 focus:ring-green-700 transition-all"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">*Berikan ke pemilik UMKM agar mereka bisa login nantinya.</p>
+                </div>
+              </div>
+
+              {/* KOLOM KANAN: Profil Toko & Foto */}
+              <div className="space-y-6">
+                
+                <h2 className="font-bold text-lg text-green-700 border-b pb-2">2. Profil UMKM</h2>
+
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Nama UMKM / Toko</label>
+                  <input
+                    type="text"
+                    name="nama_umkm"
+                    value={formData.nama_umkm}
                     onChange={handleChange}
                     required
                     placeholder="Contoh: Risol GC"
@@ -124,71 +168,54 @@ function UmkmForm() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Nama Pemilik (Owner)
-                  </label>
-                  <input
-                    type="text"
-                    name="ownerName"
-                    value={formData.ownerName}
-                    onChange={handleChange}
-                    required
-                    placeholder="Contoh: Budi Santoso"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 focus:ring-1 focus:ring-green-700 transition-all"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Lokasi Stand</label>
+                    <input
+                      type="text"
+                      name="lokasi"
+                      value={formData.lokasi}
+                      onChange={handleChange}
+                      required
+                      placeholder="Contoh: Stand 04"
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 focus:ring-1 focus:ring-green-700 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Jam Buka</label>
+                    <input
+                      type="text"
+                      name="jam_operasional"
+                      value={formData.jam_operasional}
+                      onChange={handleChange}
+                      required
+                      placeholder="Contoh: 08:00 - 16:00"
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 focus:ring-1 focus:ring-green-700 transition-all"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Nomor Telepon / WhatsApp
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
+                  <label className="block text-gray-700 font-semibold mb-2">Deskripsi Singkat</label>
+                  <textarea
+                    name="deskripsi"
+                    value={formData.deskripsi}
                     onChange={handleChange}
-                    required
-                    placeholder="Contoh: 081234567890"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 focus:ring-1 focus:ring-green-700 transition-all"
-                  />
+                    rows="2"
+                    placeholder="Tuliskan jualan utama UMKM ini..."
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 focus:ring-1 focus:ring-green-700 transition-all resize-none"
+                  ></textarea>
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Kategori Jualan
-                  </label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 focus:ring-1 focus:ring-green-700 transition-all bg-white"
-                  >
-                    <option value="Makanan Berat">Makanan Berat</option>
-                    <option value="Camilan">Camilan</option>
-                    <option value="Minuman">Minuman</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* KOLOM KANAN: Foto & Deskripsi */}
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Foto / Logo UMKM
-                  </label>
-                  <div className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 transition-all relative overflow-hidden">
+                  <label className="block text-gray-700 font-semibold mb-2">Foto / Logo UMKM</label>
+                  <div className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 transition-all relative overflow-hidden">
                     {imagePreview ? (
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
+                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6 text-gray-500">
-                        <Upload size={32} className="mb-3" />
-                        <p className="text-sm font-semibold">Klik untuk upload foto</p>
-                        <p className="text-xs mt-1">PNG, JPG (Max. 2MB)</p>
+                      <div className="flex flex-col items-center justify-center text-gray-500">
+                        <Upload size={24} className="mb-2" />
+                        <p className="text-sm font-semibold">Upload Foto</p>
                       </div>
                     )}
                     <input
@@ -200,19 +227,6 @@ function UmkmForm() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Deskripsi Singkat
-                  </label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
-                    rows="4"
-                    placeholder="Tuliskan deskripsi singkat mengenai UMKM ini..."
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-green-700 focus:ring-1 focus:ring-green-700 transition-all resize-none"
-                  ></textarea>
-                </div>
               </div>
             </div>
 
@@ -221,7 +235,7 @@ function UmkmForm() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="bg-green-700 hover:bg-green-800 text-white px-8 py-3 rounded-xl flex items-center gap-2 font-bold text-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                className="bg-green-700 hover:bg-green-800 text-white px-8 py-3 rounded-xl flex items-center gap-2 font-bold text-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed shadow-md"
               >
                 {isLoading ? (
                   "Menyimpan..."

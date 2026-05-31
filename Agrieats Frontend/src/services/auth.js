@@ -2,9 +2,8 @@ import api from "./api";
 
 export const loginUser = async (username, password) => {
   try {
-    // FastAPI (OAuth2PasswordRequestForm) butuh format form-data, bukan JSON
     const formData = new URLSearchParams();
-    formData.append("username", username); // Bisa diisi NIM (mahasiswa) atau Email/ID (UMKM)
+    formData.append("username", username); // Bisa diisi NIM, Email, atau Username
     formData.append("password", password);
 
     const response = await api.post("/api/auth/login", formData, {
@@ -13,11 +12,11 @@ export const loginUser = async (username, password) => {
       },
     });
 
-    // Simpan token ke localStorage (Sesuai setelan interceptor di api.js)
+    // Simpan token ke localStorage
     if (response.data.access_token) {
       localStorage.setItem("token", response.data.access_token);
       
-      // Simpan peran/role jika backend mengirimkannya untuk routing halaman
+      // Simpan peran/role jika backend mengirimkannya
       if (response.data.peran) {
         localStorage.setItem("peran", response.data.peran);
       }
@@ -31,43 +30,37 @@ export const loginUser = async (username, password) => {
 };
 
 export const logoutUser = () => {
-  // Hapus token dari browser saat logout
   localStorage.removeItem("token");
   localStorage.removeItem("peran");
 };
 
 export const isAuthenticated = () => {
-  // Cek apakah ada token di browser
   return localStorage.getItem("token") !== null;
 };
 
-// GET CURRENT USER (Cerdas: Coba Mahasiswa dulu, kalau gagal coba UMKM)
+// GET CURRENT USER (Mendeteksi Mahasiswa, UMKM, atau Pengelola)
 export const getCurrentUser = async () => {
   try {
     try {
-      // Cek apakah user ini adalah Mahasiswa
+      // 1. Coba pintu Mahasiswa
       const response = await api.get("/api/mahasiswa/me");
-      
-      // Kembalikan data dan sisipkan label 'peran' agar Login.jsx tahu harus pindah ke halaman mana
       return { ...response.data, peran: "MAHASISWA" }; 
       
     } catch (errMhs) {
-      
-      // Jika gagal (berarti dia bukan mahasiswa), cek apakah dia UMKM
-      const response = await api.get("/api/umkm/me");
-      
-      // Kembalikan data dan sisipkan label 'peran'
-      return { ...response.data, peran: "UMKM" };
+      try {
+        // 2. Jika bukan Mahasiswa, coba pintu UMKM
+        const response = await api.get("/api/umkm/me");
+        return { ...response.data, peran: "UMKM" };
+
+      } catch (errUmkm) {
+        // 3. Jika bukan UMKM juga, coba pintu Pengelola Kantin!
+        const response = await api.get("/api/pengelola/me");
+        return { ...response.data, peran: "PENGELOLA" };
+      }
     }
   } catch (error) {
-    // Jika ditolak di kedua pintu, berarti token tidak valid atau ada masalah server
-    console.error("Gagal mengambil profil:", error);
+    // Jika ditolak di KETIGA pintu, barulah lempar error ke Login.jsx
+    console.error("Gagal mengambil profil (Token tidak valid / Server error):", error);
     throw error;
   }
 };
-
-// 5. REGISTER (Opsional/Bisa disesuaikan nanti)
-// export const registerUser = async (userData) => {
-//   const response = await api.post("/api/auth/register", userData);
-//   return response.data;
-// }

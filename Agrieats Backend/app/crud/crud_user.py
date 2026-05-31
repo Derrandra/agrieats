@@ -68,3 +68,31 @@ def get_all_umkm(db: Session, hanya_buka: bool = True):
         query = query.filter(models.UMKM.status_buka == True)
         
     return query.all()
+
+def create_pengelola(db: Session, pengelola: user.PengelolaCreate):
+    # Hash password terlebih dahulu
+    hashed_password = get_password_hash(pengelola.password)
+    
+    # Buat ID unik (disamakan dengan format ID di database yaitu [:20])
+    new_id = str(uuid.uuid4())[:20]
+
+    # Panggil model PengelolaKantin
+    db_pengelola = models.PengelolaKantin(
+        id_akun=new_id,
+        id_pengelola=new_id, 
+        username=pengelola.username,
+        email=pengelola.email,
+        password=hashed_password,
+        peran="PENGELOLA",
+        
+        # Field spesifik subclass PengelolaKantin
+        nama_u_kantin=pengelola.nama_u_kantin,
+        nama_pj_usaha=pengelola.nama_pj_usaha,
+        kontak_pengelola=pengelola.kontak_pengelola
+    )
+
+    db.add(db_pengelola)
+    db.commit()
+    db.refresh(db_pengelola)
+    
+    return db_pengelola

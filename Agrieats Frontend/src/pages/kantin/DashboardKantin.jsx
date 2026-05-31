@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+import api from "../../services/api";
 import SidebarKantin from "../../components/kantin/SidebarKantin";
 import TopbarKantin from "../../components/kantin/TopbarKantin";
 import NotificationModal from "../../components/umkm/modal/NotificationModal";
@@ -18,77 +19,74 @@ import NotificationModal from "../../components/umkm/modal/NotificationModal";
 function DashboardKantin() {
   const navigate = useNavigate();
   
-  // State untuk status toko dan modal notifikasi
   const [storeOpen, setStoreOpen] = useState(true);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
 
-  // State untuk filter grafik & summary
+  // State Data User & UMKM
+  const [kantinName, setKantinName] = useState("Kantin");
+  const [umkmList, setUmkmList] = useState([]);
+
+  // Fungsi untuk mendapatkan tanggal awal bulan dan hari ini secara dinamis
+  const getFirstDayOfMonth = () => {
+    const date = new Date();
+    return new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
+  };
+  const getTodayDate = () => {
+    return new Date().toISOString().split('T')[0];
+  };
+
+  // State untuk filter grafik & summary (Sekarang dinamis mengikuti waktu saat ini)
   const [chartView, setChartView] = useState("daily"); 
-  const [startDate, setStartDate] = useState("2026-01-01");
-  const [endDate, setEndDate] = useState("2026-01-31");
-  const [chartData, setChartData] = useState([]);
+  const [startDate, setStartDate] = useState(getFirstDayOfMonth());
+  const [endDate, setEndDate] = useState(getTodayDate());
   
-  // State untuk summary cards (Real-time)
+  const [chartData, setChartData] = useState([]);
   const [summaryData, setSummaryData] = useState({
     revenue: 0,
     totalSales: 0,
     topKantin: "Memuat...",
   });
 
-  function updateStoreStatus() {
-    setStoreOpen(!storeOpen);
-  }
+  useEffect(() => {
+    // Ambil nama unit kantin dari localStorage
+    const user = JSON.parse(localStorage.getItem("currentUser"));
+    if (user && user.nama_u_kantin) {
+      setKantinName(user.nama_u_kantin); // Menampilkan "Kantin SSMI" dll
+    } else if (user && user.username) {
+      setKantinName(user.username);
+    }
 
-  // Effect mengambil data (Chart & Summary) setiap kali filter berubah
+    fetchUmkmData();
+  }, []);
+
+  // Fetch data setiap kali filter tanggal atau view berubah
   useEffect(() => {
     fetchDashboardData();
   }, [chartView, startDate, endDate]);
 
+  async function fetchUmkmData() {
+    try {
+      const response = await api.get("/api/pengelola/umkm");
+      setUmkmList(response.data);
+    } catch (error) {
+      console.error("Gagal mengambil data UMKM:", error);
+    }
+  }
+
   async function fetchDashboardData() {
     try {
-      /* // TODO: KONEKSI BACKEND
-      const chartResponse = await api.get("/kantin/sales-chart", {
+      // Mengambil data statistik dari backend berdasarkan filter tanggal
+      const response = await api.get("/api/pengelola/statistik", {
         params: { view: chartView, start: startDate, end: endDate }
       });
-      setChartData(chartResponse.data);
-
-      const summaryResponse = await api.get("/kantin/summary", {
-        params: { start: startDate, end: endDate }
-      });
-      setSummaryData(summaryResponse.data);
-      */
-
-      // FALLBACK DUMMY DATA SEMENTARA
-      if (chartView === "daily") {
-        setChartData([
-          { name: "Senin", total: 450000 },
-          { name: "Selasa", total: 300000 },
-          { name: "Rabu", total: 550000 },
-          { name: "Kamis", total: 400000 },
-          { name: "Jumat", total: 700000 },
-          { name: "Sabtu", total: 850000 },
-          { name: "Minggu", total: 950000 },
-        ]);
-        setSummaryData({
-          revenue: 12500000,
-          totalSales: 1250,
-          topKantin: "Risol GC",
-        });
-      } else {
-        setChartData([
-          { name: "Minggu 1", total: 2100000 },
-          { name: "Minggu 2", total: 2400000 },
-          { name: "Minggu 3", total: 2800000 },
-          { name: "Minggu 4", total: 3200000 },
-        ]);
-        setSummaryData({
-          revenue: 45500000,
-          totalSales: 4320,
-          topKantin: "Cireng BC",
-        });
-      }
+      
+      setChartData(response.data.chart);
+      setSummaryData(response.data.summary);
     } catch (error) {
       console.error("Gagal mengambil data dashboard:", error);
+      // Fallback jika error agar UI tidak blank
+      setSummaryData({ revenue: 0, totalSales: 0, topKantin: "-" });
+      setChartData([]);
     }
   }
 
@@ -97,46 +95,9 @@ function DashboardKantin() {
     { id: 2, text: "Kontrak Cireng BC akan segera habis" },
   ];
 
-  const umkm = [
-    {
-      id: 1,
-      name: "Risol GC",
-      category: "Makanan Berat",
-      image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
-    },
-    {
-      id: 2,
-      name: "Cireng BC",
-      category: "Camilan",
-      image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4",
-    },
-    {
-      id: 3,
-      name: "Jus Andra",
-      category: "Minuman",
-      image: "https://images.unsplash.com/photo-1553531889-56cc480ac5cb",
-    },
-  ];
-
   const reviews = [
-    {
-      id: 1,
-      customer: "Budi Santoso",
-      rating: 5,
-      review: "Makanan sangat enak dan pelayanan cepat",
-    },
-    {
-      id: 2,
-      customer: "Andi Wijaya",
-      rating: 4,
-      review: "Tempat nyaman dan bersih",
-    },
-    {
-      id: 3,
-      customer: "Siti Aminah",
-      rating: 5,
-      review: "Pilihan makanan lengkap",
-    },
+    { id: 1, customer: "Budi Santoso", rating: 5, review: "Makanan sangat enak dan pelayanan cepat" },
+    { id: 2, customer: "Andi Wijaya", rating: 4, review: "Tempat nyaman dan bersih" },
   ];
 
   return (
@@ -148,7 +109,7 @@ function DashboardKantin() {
 
         {/* HEADER */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold">Hello, Admin!</h1>
+          <h1 className="text-3xl font-bold">Hello, {kantinName}!</h1>
         </div>
 
         {/* FILTER TANGGAL */}
@@ -232,7 +193,7 @@ function DashboardKantin() {
 
           <div className="bg-white p-6 rounded-2xl shadow">
             <h2 className="text-gray-500 font-medium">Kantin Terlaris</h2>
-            <p className="text-4xl font-bold text-green-700 mt-3">
+            <p className="text-4xl font-bold text-green-700 mt-3 truncate">
               {summaryData.topKantin}
             </p>
           </div>
@@ -251,13 +212,21 @@ function DashboardKantin() {
           </div>
 
           <div className="grid grid-cols-4 gap-5">
-            {umkm.map((item) => (
-              <div key={item.id} className="bg-white rounded-2xl p-4 shadow">
-                <img src={item.image} alt={item.name} className="w-full h-40 object-cover rounded-xl" />
-                <h2 className="font-bold mt-3 text-lg">{item.name}</h2>
-                <p className="text-gray-500">{item.category}</p>
+            {umkmList.length > 0 ? (
+              umkmList.map((item) => (
+                <div key={item.id_umkm} className="bg-white rounded-2xl p-4 shadow">
+                  <div className="w-full h-40 bg-gray-200 rounded-xl flex items-center justify-center text-gray-400 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400" alt={item.nama_umkm} className="w-full h-full object-cover" />
+                  </div>
+                  <h2 className="font-bold mt-3 text-lg">{item.nama_umkm}</h2>
+                  <p className="text-gray-500">{item.lokasi}</p>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-3 bg-white p-6 rounded-2xl shadow text-gray-500 flex items-center justify-center">
+                Belum ada UMKM yang terdaftar di kantin Anda.
               </div>
-            ))}
+            )}
 
             <div 
               onClick={() => navigate("/kantin/umkm/add")}
@@ -294,7 +263,6 @@ function DashboardKantin() {
         
       </div>
 
-      {/* Modal Notifikasi */}
       <NotificationModal 
         isOpen={isNotifOpen} 
         onClose={() => setIsNotifOpen(false)} 
