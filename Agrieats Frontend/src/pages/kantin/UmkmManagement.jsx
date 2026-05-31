@@ -25,36 +25,45 @@ function UmkmManagement() {
       const response = await api.get("/umkms");
       setUmkms(response.data);
     } catch (error) {
-      console.log("Error fetching umkms dari backend:", error);
+      console.log("Menggunakan fallback localStorage:", error);
       
-      // Fallback sementara jika backend belum siap
-      const dummyUmkms = [
-        {
-          id: 1,
-          image: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1",
-          name: "Risol GC",
-          category: "Makanan Berat",
-          owner: "Budi",
-          status: "Aktif",
-        },
-        {
-          id: 2,
-          image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38",
-          name: "Cireng BC",
-          category: "Camilan",
-          owner: "Andi",
-          status: "Aktif",
-        },
-        {
-          id: 3,
-          image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d",
-          name: "Jus Andra",
-          category: "Minuman",
-          owner: "Andra",
-          status: "Menunggu Kontrak",
-        },
-      ];
-      setUmkms(dummyUmkms);
+      // Cek localStorage dulu
+      const savedUmkms = JSON.parse(localStorage.getItem("umkms")) || [];
+      
+      if (savedUmkms.length > 0) {
+        setUmkms(savedUmkms);
+      } else {
+        // Kalau localStorage kosong, baru pakai dummy awal
+        const dummyUmkms = [
+          {
+            id: 1,
+            image: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1",
+            name: "Risol GC",
+            category: "Makanan Berat",
+            owner: "Budi",
+            status: "Aktif",
+          },
+          {
+            id: 2,
+            image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38",
+            name: "Cireng BC",
+            category: "Camilan",
+            owner: "Andi",
+            status: "Aktif",
+          },
+          {
+            id: 3,
+            image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d",
+            name: "Jus Andra",
+            category: "Minuman",
+            owner: "Andra",
+            status: "Menunggu Kontrak",
+          },
+        ];
+        // Simpan dummy ke localStorage biar selanjutnya kebaca
+        localStorage.setItem("umkms", JSON.stringify(dummyUmkms));
+        setUmkms(dummyUmkms);
+      }
     }
   }
 

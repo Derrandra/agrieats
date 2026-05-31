@@ -13,6 +13,7 @@ import MenuForm from "./pages/umkm/MenuForm";
 
 import DashboardKantin from "./pages/kantin/DashboardKantin";
 import UmkmManagement from "./pages/kantin/UmkmManagement";
+import UmkmForm from "./pages/kantin/UmkmForm";
 
 function App() {
 
@@ -76,6 +77,11 @@ function App() {
       <Route 
         path="/kantin/umkm"
         element={<UmkmManagement />}
+      />
+
+      <Route
+        path="/kantin/umkm/add"
+        element={<UmkmForm />}
       />
 
     </Routes>
