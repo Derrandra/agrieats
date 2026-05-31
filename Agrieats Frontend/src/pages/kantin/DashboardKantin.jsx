@@ -271,9 +271,12 @@ function DashboardKantin() {
 
         {/* REVIEW */}
         <div>
-          <div className="flex justify-between items-center mb-5">
+            <div className="flex justify-between items-center mb-5">
             <h1 className="text-2xl font-bold">Customer Review</h1>
-            <p className="text-gray-500 cursor-pointer hover:text-green-700 font-medium transition-colors">
+            <p 
+              onClick={() => navigate("/kantin/reviews")} 
+              className="text-gray-500 cursor-pointer hover:text-green-700 font-medium transition-colors"
+            >
               View All
             </p>
           </div>
