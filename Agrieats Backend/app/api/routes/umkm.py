@@ -7,6 +7,9 @@ from app.api.dependencies import get_current_user
 from app.db import models
 from typing import List
 from app.crud.crud_po import po_repository
+from sqlalchemy import text
+from app.schemas.merchant import MerchantToggleUpdate, MerchantScheduleUpdate, MerchantResponse
+from app.crud import crud_merchant
 
 router = APIRouter()
 
@@ -43,3 +46,19 @@ def lihat_statistik_toko(
     
     statistik = po_repository.get_statistik_umkm(db=db, id_umkm=current_user.id_akun)
     return statistik
+
+# Endpoint Toggle Manual
+@router.put("/{id_umkm}/toggle", response_model=MerchantResponse)
+def toggle_merchant_status(id_umkm: str, payload: MerchantToggleUpdate, db: Session = Depends(get_db)):
+    merchant = crud_merchant.update_merchant_toggle_manual(db, id_umkm, payload.status_buka)
+    if not merchant:
+        raise HTTPException(status_code=404, detail="UMKM tidak ditemukan")
+    return merchant
+
+# Endpoint Jam Operasional
+@router.put("/{id_umkm}/schedule", response_model=MerchantResponse)
+def update_operational_hours(id_umkm: str, payload: MerchantScheduleUpdate, db: Session = Depends(get_db)):
+    merchant = crud_merchant.update_merchant_schedule_str(db, id_umkm, payload.jam_operasional)
+    if not merchant:
+        raise HTTPException(status_code=404, detail="UMKM tidak ditemukan")
+    return merchant
