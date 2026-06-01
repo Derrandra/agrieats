@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
+from typing import Optional
 
 # BASE SCHEMA
 class MahasiswaBase(BaseModel):
@@ -77,3 +78,12 @@ class PengelolaResponse(PengelolaBase):
 
     class Config:
         from_attributes = True
+
+class PengelolaUpdate(BaseModel):
+    nama_pj_usaha: Optional[str] = None
+    kontak_pengelola: Optional[str] = None
+
+class MahasiswaUpdate(BaseModel):
+    username: Optional[str] = None
+    email: Optional[str] = None
+    telepon: Optional[str] = None

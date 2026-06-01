@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Mail, BookOpen, Phone, Shield, ChevronRight, LogOut } from "lucide-react";
+import { User, Mail, BookOpen, Phone, Shield, ChevronRight, LogOut, X, Save } from "lucide-react";
 import api from "../../services/api";
 
 import SidebarMahasiswa from "../../components/mahasiswa/SidebarMahasiswa";
@@ -9,7 +9,6 @@ import TopbarMahasiswa from "../../components/mahasiswa/TopbarMahasiswa";
 function ProfileMahasiswa() {
   const navigate = useNavigate();
   
-  // State awal disesuaikan dengan field dasar dari tabel database / form register
   const [userProfile, setUserProfile] = useState({
     name: "Memuat...",
     nim: "-",
@@ -17,57 +16,121 @@ function ProfileMahasiswa() {
     phone: "-"
   });
 
+  // State untuk Modal Edit Profil
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", email: "", phone: "" });
+  const [isSaving, setIsSaving] = useState(false);
+
   useEffect(() => {
     loadUserProfile();
   }, []);
 
   const loadUserProfile = async () => {
     try {
-      // TODO: [BACKEND INTEGRATION] Fetch data dari API database 
-      // const response = await api.get("/users/profile");
-      // setUserProfile(response.data);
-
-      // Simulasi menarik data dari session/localStorage (biasanya di-set saat Login/Register)
-      const savedAccount = JSON.parse(localStorage.getItem("user_account"));
+      const response = await api.get("/api/mahasiswa/me");
+      const data = response.data;
       
+      setUserProfile({
+        name: data.username || data.nama_mahasiswa || "Mahasiswa",
+        nim: data.nim || data.id_akun || "-",
+        email: data.email || "-",
+        phone: data.telepon || "-"
+      });
+    } catch (error) {
+      console.error("Gagal memuat profil dari API:", error);
+      
+      const savedAccount = JSON.parse(localStorage.getItem("currentUser"));
       if (savedAccount) {
         setUserProfile({
-          name: savedAccount.name || savedAccount.namaLengkap || "Pengguna",
-          nim: savedAccount.nim || "-",
+          name: savedAccount.username || savedAccount.nama_mahasiswa || "Mahasiswa",
+          nim: savedAccount.nim || savedAccount.id_akun || "-",
           email: savedAccount.email || "-",
-          phone: savedAccount.phone || savedAccount.noHp || "-"
+          phone: savedAccount.telepon || "-"
         });
       } else {
-        // Fallback default jika belum ada data login/register (agar UI tidak kosong saat presentasi)
         setUserProfile({
-          name: "Luthfi Muharram",
-          nim: "G6401231001",
-          email: "luthfi_muharram@apps.ipb.ac.id",
-          phone: "081234567890"
+          name: "Pengguna Tidak Dikenal",
+          nim: "-",
+          email: "-",
+          phone: "-"
         });
       }
-    } catch (error) {
-      console.error("Gagal memuat profil:", error);
     }
   };
 
   const handleLogout = () => {
-    const confirmLogout = window.confirm("Apakah kamu yakin ingin keluar?");
+    const confirmLogout = window.confirm("Apakah kamu yakin ingin keluar dari Agrieats?");
     if (confirmLogout) {
-      // Hapus sesi / token login
-      // localStorage.removeItem("user_account");
+      localStorage.removeItem("access_token"); 
+      localStorage.removeItem("token"); 
+      localStorage.removeItem("currentUser");
+      
       alert("Berhasil logout!");
-      navigate("/"); // Arahkan kembali ke halaman login (sesuaikan rutenya)
+      navigate("/"); 
     }
   };
 
+  // Fungsi untuk membuka modal dan mengisi form dengan data saat ini
+  const openEditModal = () => {
+    setEditForm({
+      name: userProfile.name,
+      email: userProfile.email,
+      phone: userProfile.phone
+    });
+    setIsEditModalOpen(true);
+  };
+
+  // Fungsi untuk menyimpan perubahan ke Backend
+  const handleSaveProfile = async () => {
+    setIsSaving(true);
+    try {
+      // Sesuaikan key payload ini dengan skema Pydantic di FastAPI kamu
+      const payload = {
+        username: editForm.name,
+        email: editForm.email,
+        telepon: editForm.phone
+      };
+
+      // Tembak API Update (Pastikan endpoint ini sudah ada di backend)
+      await api.put("/api/mahasiswa/me", payload);
+
+      // Update state lokal agar UI langsung berubah
+      setUserProfile(prev => ({
+        ...prev,
+        name: editForm.name,
+        email: editForm.email,
+        phone: editForm.phone
+      }));
+
+      // Update localStorage juga jika diperlukan
+      const currentUser = JSON.parse(localStorage.getItem("currentUser")) || {};
+      localStorage.setItem("currentUser", JSON.stringify({
+        ...currentUser,
+        username: editForm.name,
+        email: editForm.email,
+        telepon: editForm.phone
+      }));
+
+      alert("Profil berhasil diperbarui!");
+      setIsEditModalOpen(false);
+    } catch (error) {
+      console.error("Gagal menyimpan profil:", error);
+      alert(error.response?.data?.detail || "Terjadi kesalahan saat memperbarui profil.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const namaDepan = userProfile.name !== "Memuat..." && userProfile.name !== "Pengguna Tidak Dikenal" 
+    ? userProfile.name.split(" ")[0] 
+    : "Mahasiswa";
+
   return (
-    <div className="flex min-h-screen bg-[#F2F0F0] font-sans">
+    <div className="flex min-h-screen bg-[#F2F0F0] font-sans relative">
       <SidebarMahasiswa />
 
       <div className="flex-1 ml-64 p-10 overflow-hidden">
-        {/* Topbar namaUser diambil secara dinamis hanya nama depannya saja */}
-        <TopbarMahasiswa namaUser={userProfile.name.split(" ")[0]} />
+        <TopbarMahasiswa namaUser={namaDepan} />
 
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800">Profil Pengguna</h1>
@@ -79,8 +142,7 @@ function ProfileMahasiswa() {
           {/* KARTU PROFIL UTAMA (KIRI) */}
           <div className="xl:col-span-1 bg-white p-8 rounded-3xl shadow-sm border border-gray-200 flex flex-col items-center text-center">
             <div className="w-32 h-32 bg-[#15803d]/10 text-[#15803d] rounded-full flex items-center justify-center font-bold text-4xl mb-4 border-2 border-[#15803d]/20 shadow-inner uppercase">
-              {/* Mengambil 2 huruf pertama dari nama untuk Avatar */}
-              {userProfile.name.substring(0, 2)}
+              {userProfile.name !== "Memuat..." ? userProfile.name.substring(0, 2) : "??"}
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-1">{userProfile.name}</h2>
             <p className="text-sm font-semibold text-[#15803d] bg-green-50 px-3 py-1 rounded-full mb-6 border border-green-100">
@@ -115,18 +177,20 @@ function ProfileMahasiswa() {
           {/* DETAIL PENGATURAN (KANAN) */}
           <div className="xl:col-span-2 flex flex-col gap-6">
 
-            {/* Pengaturan Akun & Keamanan */}
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-200">
               <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <Shield size={20} className="text-[#15803d]" /> Pengaturan Akun
               </h3>
               <div className="flex flex-col">
-                <button className="flex items-center justify-between py-4 border-b border-gray-100 text-left hover:text-[#15803d] transition-colors group">
+                <button 
+                  onClick={openEditModal}
+                  className="flex items-center justify-between py-4 border-b border-gray-100 text-left hover:text-[#15803d] transition-colors group"
+                >
                   <div className="flex items-center gap-3">
                     <User size={18} className="text-gray-400 group-hover:text-[#15803d]" />
                     <div>
                       <p className="text-sm font-bold text-gray-700">Edit Profil</p>
-                      <p className="text-xs text-gray-400">Perbarui nama, NIM, atau nomor telepon</p>
+                      <p className="text-xs text-gray-400">Perbarui nama, email, atau nomor telepon</p>
                     </div>
                   </div>
                   <ChevronRight size={18} className="text-gray-400" />
@@ -157,6 +221,85 @@ function ProfileMahasiswa() {
 
         </div>
       </div>
+
+      {/* MODAL EDIT PROFIL */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-800">Edit Profil</h2>
+              <button 
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-gray-400 hover:text-red-500 transition-colors bg-gray-50 hover:bg-red-50 p-2 rounded-full"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 flex flex-col gap-5">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">NIM (Tidak dapat diubah)</label>
+                <input 
+                  type="text" 
+                  value={userProfile.nim}
+                  disabled
+                  className="w-full bg-gray-100 border border-gray-200 rounded-xl p-3 text-gray-500 font-medium cursor-not-allowed"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Nama Lengkap</label>
+                <input 
+                  type="text" 
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                  placeholder="Masukkan nama lengkap"
+                  className="w-full bg-white border border-gray-300 rounded-xl p-3 text-gray-800 outline-none focus:border-[#15803d] focus:ring-1 focus:ring-[#15803d] transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
+                <input 
+                  type="email" 
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                  placeholder="contoh@apps.ipb.ac.id"
+                  className="w-full bg-white border border-gray-300 rounded-xl p-3 text-gray-800 outline-none focus:border-[#15803d] focus:ring-1 focus:ring-[#15803d] transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">No. Telepon / WhatsApp</label>
+                <input 
+                  type="text" 
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                  placeholder="081234567890"
+                  className="w-full bg-white border border-gray-300 rounded-xl p-3 text-gray-800 outline-none focus:border-[#15803d] focus:ring-1 focus:ring-[#15803d] transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-100 flex gap-3">
+              <button 
+                onClick={() => setIsEditModalOpen(false)}
+                className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={handleSaveProfile}
+                disabled={isSaving}
+                className="flex-1 py-3 bg-[#15803d] text-white font-bold rounded-xl hover:bg-green-800 transition-colors flex justify-center items-center gap-2 shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {isSaving ? "Menyimpan..." : <><Save size={18} /> Simpan</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
     </div>
   );
 }

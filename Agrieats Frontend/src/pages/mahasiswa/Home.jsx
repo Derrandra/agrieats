@@ -13,11 +13,13 @@ import MenuDetailModal from "../../components/umkm/modal/MenuDetailModal";
 
 function Home() {
   const navigate = useNavigate();
+  
+  const [mahasiswa, setMahasiswa] = useState(null);
   const [menus, setMenus] = useState([]);
-  const [historyOrders, setHistoryOrders] = useState([]);
   const [umkms, setUmkms] = useState([]);
+  const [historyOrders, setHistoryOrders] = useState([]);
+  
   const [searchQuery, setSearchQuery] = useState("");
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMenuDetail, setSelectedMenuDetail] = useState(null);
 
@@ -25,50 +27,63 @@ function Home() {
     loadData();
   }, []);
 
-  async function loadData() {
+async function loadData() {
     try {
-      const response = await api.get("/menus");
-      setMenus(response.data);
+      const resProfile = await api.get("/api/mahasiswa/me");
+      setMahasiswa(resProfile.data);
     } catch (error) {
-      console.log("Menggunakan data dari localStorage/Dummy");
-      
-      const savedMenus = JSON.parse(localStorage.getItem("menus")) || [];
-      if (savedMenus.length > 0) {
-        const formattedMenus = savedMenus.map((menu) => ({
-          id: menu.id || menu.id_menu,
-          name: menu.name || menu.nama_menu, 
-          umkm_name: menu.umkm_name || "Warkop HS Central", 
-          rating: menu.rating || 4.8, 
-          price: menu.price || menu.harga || 15000,
-          stock: menu.stock !== undefined ? menu.stock : 10,
-          image: menu.image || menu.foto_menu || "https://images.unsplash.com/photo-1555126634-323283e090fa",
-          description: menu.description || "Menu lezat pilihan khas kantin IPB.",
-        }));
-        setMenus(formattedMenus);
-      } else {
-        const defaultMenus = [
-          { id: 1, name: "Nasi Goreng Spesial", umkm_name: "Warkop HS Central", price: 15000, stock: 15, rating: 4.7, image: "https://images.unsplash.com/photo-1555126634-323283e090fa", description: "Nasi goreng lezat dengan bumbu rahasia." },
-          { id: 2, name: "Mie Goreng Tek-tek", umkm_name: "Bakmie Tjan Ho", price: 18000, stock: 10, rating: 4.5, image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624", description: "Mie goreng dengan topping melimpah." },
-          { id: 3, name: "Kwetiau Siram Sapi", umkm_name: "Bakmie Tjan Ho", price: 25000, stock: 8, rating: 4.8, image: "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841", description: "Kwetiau siram kuah sapi gurih." },
-          { id: 4, name: "Ayam Geprek Sambal Matah", umkm_name: "Ayam Geprek Bensu", price: 20000, stock: 20, rating: 4.7, image: "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec", description: "Ayam geprek pedas segar." },
-          { id: 5, name: "Soto Ayam Lamongan", umkm_name: "Soto Pak Sholeh", price: 22000, stock: 12, rating: 4.6, image: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d", description: "Soto ayam dengan koya khas." },
-        ];
-        localStorage.setItem("menus", JSON.stringify(defaultMenus));
-        setMenus(defaultMenus);
-      }
+      console.error("Gagal memuat profil:", error);
+      const localUser = JSON.parse(localStorage.getItem("currentUser"));
+      if (localUser) setMahasiswa(localUser);
     }
 
-    setUmkms([
-      { id: 1, name: "Warkop HS Central", rating: 4.9, image: "https://images.unsplash.com/photo-1554118811-1e0d58224f24" },
-      { id: 2, name: "Bakmie Tjan Ho", rating: 4.8, image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624" },
-      { id: 3, name: "Ayam Geprek Bensu", rating: 4.7, image: "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec" },
-      { id: 4, name: "Soto Pak Sholeh", rating: 4.6, image: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d" },
-    ]);
+    try {
+      const resUmkm = await api.get("/api/umkm/");
+      const mappedUmkm = resUmkm.data.map(u => ({
+        id: u.id_umkm,
+        name: u.nama_umkm,
+        rating: u.rating || 0,
+        image: u.foto_profil || "https://images.unsplash.com/photo-1554118811-1e0d58224f24" 
+      }));
+      setUmkms(mappedUmkm);
+    } catch (error) {
+      console.error("Gagal memuat UMKM:", error);
+      setUmkms([]); 
+    }
 
-    setHistoryOrders([
-      { id: 101, name: "Kwetiau Siram Sapi", umkm_name: "Bakmie Tjan Ho", price: 25000, image: "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841" },
-      { id: 102, name: "Ayam Geprek Sambal Matah", umkm_name: "Ayam Geprek Bensu", price: 20000, image: "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec" },
-    ]);
+    try {
+      const resMenu = await api.get("/api/menu/");
+      const mappedMenu = resMenu.data.map(m => ({
+        id: m.id_menu,
+        name: m.nama_menu,
+        umkm_name: m.umkm?.nama_umkm || "Mitra Kantin", 
+        price: m.harga,
+        stock: m.stok || 0,
+        rating: m.rating || 0,
+        image: m.foto_menu || "https://images.unsplash.com/photo-1555126634-323283e090fa",
+        description: m.deskripsi || "Tidak ada deskripsi.",
+      }));
+      setMenus(mappedMenu);
+    } catch (error) {
+      console.error("Gagal memuat Menu:", error);
+      setMenus([]); 
+    }
+
+    try {
+      // URL DIPERBAIKI MENJADI /api/po/riwayat sesuai isi po.py kamu!
+      const resHistory = await api.get("/api/po/riwayat"); 
+      const mappedHistory = resHistory.data.map(h => ({
+        id: h.id_po,
+        name: h.menu?.nama_menu || "Pesanan",
+        umkm_name: h.umkm?.nama_umkm || "-",
+        price: h.total_harga || 0,
+        image: h.menu?.foto_menu || "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841"
+      }));
+      setHistoryOrders(mappedHistory);
+    } catch (error) {
+      console.error("Gagal memuat riwayat pesanan:", error);
+      setHistoryOrders([]); 
+    }
   }
 
   const globalAddToCart = (newItem) => {
@@ -104,21 +119,24 @@ function Home() {
     setIsModalOpen(true);
   };
 
-  const filteredMenus = menus.filter(menu => 
-    menu.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredMenus = (menus || []).filter(menu => 
+    menu.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredUmkms = umkms.filter(umkm => 
-    umkm.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredUmkms = (umkms || []).filter(umkm => 
+    umkm.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const namaDepan = mahasiswa?.nama_mahasiswa?.split(" ")[0] || "Mahasiswa";
 
   return (
     <div className="flex min-h-screen bg-[#F2F0F0] font-sans relative">
       <SidebarMahasiswa />
 
       <div className="flex-1 ml-64 p-10 overflow-hidden">
-        <TopbarMahasiswa namaUser="Luthfi" />
+        <TopbarMahasiswa namaUser={namaDepan} />
 
+        {/* --- Search Bar --- */}
         <div className="mb-12 flex items-center border border-gray-300 rounded-2xl px-6 py-4 bg-white shadow-sm focus-within:border-[#15803d] focus-within:ring-1 focus-within:ring-[#15803d] transition-all">
           <Search size={28} className="text-gray-400 mr-4" />
           <input 
@@ -130,6 +148,7 @@ function Home() {
           />
         </div>
 
+        {/* --- Katalog UMKM --- */}
         <div className="mb-12">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-800">Katalog UMKM</h2>
@@ -158,11 +177,12 @@ function Home() {
                 </div>
               </div>
             )) : (
-              <p className="text-gray-500 italic">UMKM tidak ditemukan.</p>
+              <p className="text-gray-500 italic">Belum ada UMKM yang terdaftar atau buka hari ini.</p>
             )}
           </div>
         </div>
 
+        {/* --- Katalog Menu --- */}
         <div className="mb-12">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-800">Katalog Menu</h2>
@@ -193,14 +213,24 @@ function Home() {
                       <Store size={14} /> {menu.umkm_name}
                     </p>
                   </div>
+                  <div className="mt-4 flex justify-between items-center">
+                    <p className="font-bold text-lg text-[#15803d]">Rp {menu.price.toLocaleString("id-ID")}</p>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleQuickAddToCart(menu); }}
+                      className="bg-[#15803d] text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-green-800 transition-colors shadow-sm"
+                    >
+                      Pesan
+                    </button>
+                  </div>
                 </div>
               </div>
             )) : (
-              <p className="text-gray-500 italic">Menu tidak ditemukan.</p>
+              <p className="text-gray-500 italic">Belum ada menu yang tersedia.</p>
             )}
           </div>
         </div>
 
+        {/* --- Riwayat Order --- */}
         <div className="mb-12">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-800">Order Cepat Lagi</h2>
@@ -212,7 +242,7 @@ function Home() {
           </div>
           
           <div className="flex gap-6 overflow-x-auto pb-6 custom-scrollbar">
-            {historyOrders.map((itemOrder) => (
+            {historyOrders.length > 0 ? historyOrders.map((itemOrder) => (
               <div key={itemOrder.id} className="min-w-[280px] bg-white rounded-3xl shadow-sm border border-gray-200 cursor-pointer hover:-translate-y-1 hover:shadow-md transition-all p-5 flex flex-col">
                 <img src={itemOrder.image} alt={itemOrder.name} className="w-full h-36 object-cover rounded-2xl mb-4" />
                 <h3 className="font-bold text-xl text-gray-800 line-clamp-1">{itemOrder.name}</h3>
@@ -228,10 +258,13 @@ function Home() {
                   </button>
                 </div>
               </div>
-            ))}
+            )) : (
+              <p className="text-gray-500 italic">Belum ada riwayat pesanan.</p>
+            )}
           </div>
         </div>
 
+        {/* --- Kategori & Promo (Static Layout) --- */}
         <div className="grid grid-cols-2 gap-12">
           <div>
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Kategori Menu</h2>

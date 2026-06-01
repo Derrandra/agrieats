@@ -72,6 +72,17 @@ def lihat_menu_saya(
     daftar_menu = menu_repository.get_all_by_umkm(db=db, id_umkm=current_user.id_akun)
     return daftar_menu
 
+@router.get("/", response_model=List[menu_schema.MenuResponse])
+def lihat_semua_menu_global(
+    db: Session = Depends(get_db),
+    current_user: models.Akun = Depends(get_current_user)
+):
+    if current_user.peran != "MAHASISWA":
+        raise HTTPException(status_code=403, detail="Hanya mahasiswa yang dapat melihat katalog global.")
+        
+    daftar_menu = menu_repository.search_menu(db=db, keyword="")
+    return daftar_menu
+
 @router.get("/search", response_model=List[menu_schema.MenuResponse])
 def cari_menu(
     keyword: str,
@@ -124,7 +135,6 @@ def ubah_menu(
     if current_user.peran != "UMKM":
         raise HTTPException(status_code=403, detail="Akses ditolak.")
 
-    # 1. Cari menu yang mau diubah
     db_menu = menu_repository.get_by_id(db, id_menu=id_menu)
     if not db_menu:
         raise HTTPException(status_code=404, detail="Menu tidak ditemukan.")
@@ -132,10 +142,8 @@ def ubah_menu(
     if db_menu.id_umkm != current_user.id_akun:
         raise HTTPException(status_code=403, detail="Anda tidak berhak mengubah menu toko lain.")
 
-    # 2. Pertahankan foto lama sebagai default
     foto_url = db_menu.foto_menu 
     
-    # 3. Jika user mengunggah foto baru saat mengedit, proses dan timpa URL-nya
     if foto and foto.filename:
         os.makedirs("app/static/images", exist_ok=True)
         ekstensi = foto.filename.split(".")[-1]
@@ -147,7 +155,6 @@ def ubah_menu(
             
         foto_url = f"/static/images/{nama_file}"
 
-    # 4. Buat objek data baru menggunakan schema Pydantic
     menu_update = menu_schema.MenuUpdate(
         nama_menu=nama_menu,
         harga=harga,

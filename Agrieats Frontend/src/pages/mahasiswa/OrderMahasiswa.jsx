@@ -11,6 +11,8 @@ import TopbarMahasiswa from "../../components/mahasiswa/TopbarMahasiswa";
 
 function Order() {
   const navigate = useNavigate();
+  const [mahasiswa, setMahasiswa] = useState(null);
+  
   const [cartItems, setCartItems] = useState([]);
   const [cartTotal, setCartTotal] = useState(0);
 
@@ -20,6 +22,11 @@ function Order() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    // Muat data user untuk Topbar
+    const localUser = JSON.parse(localStorage.getItem("currentUser"));
+    if (localUser) setMahasiswa(localUser);
+
+    // Muat isi keranjang
     const savedCart = JSON.parse(localStorage.getItem("agrieats_cart")) || [];
     const savedTotal = Number(localStorage.getItem("agrieats_cart_total")) || 0;
     
@@ -30,7 +37,7 @@ function Order() {
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setPaymentProof(file.name);
+      setPaymentProof(file);
     }
   };
 
@@ -48,20 +55,51 @@ function Order() {
     setIsSubmitting(true);
 
     try {
-      setTimeout(() => {
-        localStorage.removeItem("agrieats_cart");
-        localStorage.removeItem("agrieats_cart_total");
-        
-        window.dispatchEvent(new Event("cartUpdated"));
-        
-        setIsSubmitting(false);
-        alert("Pesanan berhasil dibuat! Menunggu konfirmasi dari UMKM.");
-        
-        navigate("/home");
-      }, 1500);
+      // Mengubah jam (misal "10:30") menjadi format Datetime (ISO 8601) untuk hari ini
+      const today = new Date();
+      const [hours, minutes] = pickupTime.split(":");
+      today.setHours(Number(hours), Number(minutes), 0, 0);
+      const isoDatetime = today.toISOString(); 
+
+      // 1. Buat pesanan (Format SANGAT KETAT menyesuaikan POCreate di schema)
+      const orderPayload = {
+        waktu_pengambilan: isoDatetime,
+        items: cartItems.map((item) => ({
+          id_menu: item.id,
+          kuantitas: item.quantity // Menggunakan 'kuantitas' sesuai backend
+        }))
+      };
+
+      const responsePO = await api.post("/api/po/", orderPayload);
+      const newOrderId = responsePO.data.id_po; 
+
+      // 2. Upload Bukti (Jika tidak tunai)
+      if (paymentMethod !== "Tunai di Kantin" && paymentProof) {
+        const formData = new FormData();
+        formData.append("bukti", paymentProof);
+
+        try {
+          await api.put(`/api/po/${newOrderId}/upload-bukti`, formData, {
+            headers: { "Content-Type": "multipart/form-data" }
+          });
+        } catch (uploadError) {
+          console.error("Pesanan berhasil, tapi gagal upload bukti", uploadError);
+          // Tetap lanjut karena PO-nya sudah berhasil dibuat
+        }
+      }
+      
+      // Bersihkan keranjang
+      localStorage.removeItem("agrieats_cart");
+      localStorage.removeItem("agrieats_cart_total");
+      window.dispatchEvent(new Event("cartUpdated"));
+      
+      alert("Pesanan berhasil dibuat! Menunggu konfirmasi dari UMKM.");
+      navigate("/history"); 
 
     } catch (error) {
       console.error("Gagal membuat pesanan", error);
+      alert(error.response?.data?.detail || "Terjadi kesalahan saat memproses pesanan.");
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -71,7 +109,7 @@ function Order() {
       <div className="flex min-h-screen bg-[#F2F0F0] font-sans relative">
         <SidebarMahasiswa />
         <div className="flex-1 ml-64 p-10 overflow-hidden flex flex-col">
-          <TopbarMahasiswa namaUser="Luthfi" />
+          <TopbarMahasiswa namaUser={mahasiswa?.nama_mahasiswa?.split(" ")[0] || "Mahasiswa"} />
           <div className="flex-1 flex flex-col items-center justify-center text-gray-500 bg-white rounded-3xl shadow-sm border border-gray-200 p-10">
             <ShoppingBag size={80} className="text-gray-300 mb-6" />
             <h2 className="text-2xl font-bold text-gray-700 mb-2">Belum Ada Pesanan Aktif</h2>
@@ -88,12 +126,14 @@ function Order() {
     );
   }
 
+  const namaDepan = mahasiswa?.nama_mahasiswa?.split(" ")[0] || "Mahasiswa";
+
   return (
     <div className="flex min-h-screen bg-[#F2F0F0] font-sans relative">
       <SidebarMahasiswa />
 
       <div className="flex-1 ml-64 p-10 overflow-hidden">
-        <TopbarMahasiswa namaUser="Luthfi" />
+        <TopbarMahasiswa namaUser={namaDepan} />
 
         <div className="flex items-center gap-4 mb-8">
           <button 
@@ -192,7 +232,7 @@ function Order() {
                       {paymentProof ? (
                         <>
                           <CheckCircle className="w-8 h-8 text-[#15803d] mb-2" />
-                          <p className="text-sm font-bold text-gray-700">{paymentProof}</p>
+                          <p className="text-sm font-bold text-gray-700">{paymentProof.name}</p>
                           <p className="text-xs text-gray-500">Klik untuk mengganti gambar</p>
                         </>
                       ) : (

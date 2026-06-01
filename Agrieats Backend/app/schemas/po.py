@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import List
 from datetime import datetime
-
+from app.schemas.ulasan import UlasanResponse 
 # item tunggal di keranjang
 class ItemPOCreate(BaseModel):
     id_menu: str
@@ -27,10 +27,12 @@ class POResponse(BaseModel):
     waktu_pengambilan: datetime
     status: str
     total_harga: int
+    bukti_pembayaran: str | None = None
     items: List[ItemPOResponse]
-
+    ulasan_pesanan: UlasanResponse | None = None
     class Config:
         from_attributes = True
 
 class POStatusUpdate(BaseModel):
     status: str
+

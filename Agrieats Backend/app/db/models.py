@@ -112,6 +112,7 @@ class PreOrder(Base):
     waktu_pengambilan = Column(TIMESTAMP, nullable=False)
     status = Column(String(50), default="Menunggu Validasi")
     total_harga = Column(Integer, nullable=False)
+    bukti_pembayaran = Column(String, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
     # Relasi
@@ -146,6 +147,7 @@ class Ulasan(Base):
     isi_ulasan = Column(String)
     rating = Column(Integer, nullable=False)
     tanggal_ulasan = Column(TIMESTAMP, server_default=func.now())
+    foto_ulasan = Column(String, nullable=True)
 
     # Relasi
     penulis = relationship("Mahasiswa")

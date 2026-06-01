@@ -7,6 +7,7 @@ from app.api.dependencies import get_current_user
 from app.db import models
 from sqlalchemy import func
 from sqlalchemy.orm import aliased
+from app.schemas.user import PengelolaUpdate 
 
 router = APIRouter()
 
@@ -88,7 +89,6 @@ def get_statistik_kantin(
     
     revenue_val = revenue_query.scalar() or 0
 
-    # 4. Cari Kantin Terlaris
     top_kantin_query = db.query(
         models.Menu.id_umkm,
         func.sum(models.DetailPO.harga_satuan * models.DetailPO.kuantitas).label('total_pendapatan')
@@ -206,3 +206,15 @@ def get_ulasan_kantin(
         })
 
     return hasil_ulasan
+
+@router.put("/me", response_model=schemas.PengelolaResponse)
+def update_profil_pengelola(
+    payload: PengelolaUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.Akun = Depends(get_current_user)
+):
+    if current_user.peran != "PENGELOLA":
+        raise HTTPException(status_code=403, detail="Akses ditolak")
+    
+    updated_user = crud_user.update_pengelola_profile(db, current_user.id_akun, payload)
+    return updated_user

@@ -96,3 +96,18 @@ def create_pengelola(db: Session, pengelola: user.PengelolaCreate):
     db.refresh(db_pengelola)
     
     return db_pengelola
+
+def update_pengelola_profile(db: Session, id_akun: str, data: user.PengelolaUpdate):
+    db_pengelola = db.query(models.PengelolaKantin).filter(models.PengelolaKantin.id_akun == id_akun).first()
+    
+    if db_pengelola:
+        if data.nama_pj_usaha is not None:
+            db_pengelola.nama_pj_usaha = data.nama_pj_usaha
+        if data.kontak_pengelola is not None:
+            db_pengelola.kontak_pengelola = data.kontak_pengelola
+            
+        db.commit()
+        db.refresh(db_pengelola)
+    
+    # Ambil ulang data Akun lengkap
+    return db.query(models.Akun).filter(models.Akun.id_akun == id_akun).first()

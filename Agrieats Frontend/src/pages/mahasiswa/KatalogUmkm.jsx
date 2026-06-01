@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Star, Store } from "lucide-react";
+import { Search, Star, Store, MapPin, Clock } from "lucide-react";
 import api from "../../services/api";
 
 import SidebarMahasiswa from "../../components/mahasiswa/SidebarMahasiswa";
@@ -9,6 +9,7 @@ import FloatingCart from "../../components/mahasiswa/FloatingCart";
 
 function KatalogUmkm() {
   const navigate = useNavigate();
+  const [mahasiswa, setMahasiswa] = useState(null);
   const [umkms, setUmkms] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -20,20 +21,37 @@ function KatalogUmkm() {
   }, []);
 
   async function loadData() {
-    // TODO: [BACKEND INTEGRATION] Template Fetch Data UMKM
     try {
-      // const response = await api.get("/umkms");
-      // setUmkms(response.data);
+      const resProfile = await api.get("/api/mahasiswa/me");
+      setMahasiswa(resProfile.data);
+    } catch (error) {
+      const localUser = JSON.parse(localStorage.getItem("currentUser"));
+      if (localUser) setMahasiswa(localUser);
+    }
+
+    try {
+      const response = await api.get("/api/umkm/");
       
-      const dummyUmkms = [
-        { id: 1, name: "Warkop HS Central", rating: 4.9, isOpen: true, image: "https://images.unsplash.com/photo-1554118811-1e0d58224f24" },
-        { id: 2, name: "Bakmie Tjan Ho", rating: 4.8, isOpen: true, image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624" },
-        { id: 3, name: "Ayam Geprek Bensu", rating: 4.7, isOpen: false, image: "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec" },
-        { id: 4, name: "Soto Pak Sholeh", rating: 4.6, isOpen: true, image: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d" },
-        { id: 5, name: "Kwetiau Goreng Babeh", rating: 4.7, isOpen: true, image: "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841" },
-        { id: 6, name: "Seblak Mercon", rating: 4.4, isOpen: false, image: "https://images.unsplash.com/photo-1555126634-323283e090fa" },
+      const fallbackImages = [
+        "https://images.unsplash.com/photo-1554118811-1e0d58224f24",
+        "https://images.unsplash.com/photo-1569718212165-3a8278d5f624",
+        "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec",
+        "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d",
+        "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841",
+        "https://images.unsplash.com/photo-1555126634-323283e090fa"
       ];
-      setUmkms(dummyUmkms);
+
+      const mappedUmkms = response.data.map((umkm, index) => ({
+        id: umkm.id_umkm,
+        name: umkm.nama_umkm,
+        rating: umkm.rating || 0,
+        isOpen: umkm.status_buka,
+        location: umkm.lokasi,
+        hours: umkm.jam_operasional,
+        image: fallbackImages[index % fallbackImages.length] 
+      }));
+
+      setUmkms(mappedUmkms);
       
     } catch (error) {
       console.error("Gagal memuat data UMKM:", error);
@@ -60,12 +78,14 @@ function KatalogUmkm() {
     setCurrentPage(1);
   }, [searchQuery]);
 
+  const namaDepan = mahasiswa?.nama_mahasiswa?.split(" ")[0] || "Mahasiswa";
+
   return (
     <div className="flex min-h-screen bg-[#F2F0F0] font-sans relative">
       <SidebarMahasiswa />
 
       <div className="flex-1 ml-64 p-10 overflow-hidden">
-        <TopbarMahasiswa namaUser="Luthfi" />
+        <TopbarMahasiswa namaUser={namaDepan} />
 
         {/* SEARCH BAR */}
         <div className="mb-8">
@@ -81,7 +101,7 @@ function KatalogUmkm() {
           </div>
         </div>
 
-        {/* DAFTAR UMKM TERSERDIA */}
+        {/* DAFTAR UMKM TERSEDIA */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">UMKM Tersedia</h2>
           
@@ -89,33 +109,49 @@ function KatalogUmkm() {
             {currentUmkms.length > 0 ? currentUmkms.map((umkm) => (
               <div key={umkm.id} className="bg-white rounded-3xl shadow-sm border border-gray-200 p-4 flex gap-6 hover:shadow-md transition-all group">
                 
-                <div className="w-40 h-40 shrink-0 overflow-hidden rounded-2xl">
+                <div className="w-40 h-40 shrink-0 overflow-hidden rounded-2xl relative">
                   <img src={umkm.image} alt={umkm.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  {/* Overlay Gelap Jika Tutup */}
+                  {!umkm.isOpen && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <span className="bg-red-600 text-white font-bold px-3 py-1 rounded-lg text-sm rotate-[-10deg]">TUTUP</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-col justify-between flex-1 py-1">
                   <div>
                     <div className="flex justify-between items-start gap-2 mb-1">
                       <h3 className="font-bold text-xl text-gray-800 line-clamp-1">{umkm.name}</h3>
-                      <div className="flex items-center gap-1 text-gray-800 font-bold text-sm bg-yellow-100/50 px-2 py-1 rounded-lg">
+                      <div className="flex items-center gap-1 text-gray-800 font-bold text-sm bg-yellow-100/50 px-2 py-1 rounded-lg shrink-0">
                         <Star size={16} className="text-yellow-500 fill-yellow-500" />
-                        {umkm.rating}
+                        {Number(umkm.rating).toFixed(1)}
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-2 mt-3 mb-2">
-                      <span className={`px-3 py-1 rounded-lg text-xs font-bold text-white ${umkm.isOpen ? 'bg-green-500' : 'bg-red-600'}`}>
-                        {umkm.isOpen ? 'Buka' : 'Tutup'}
-                      </span>
+                    <div className="flex flex-col gap-1.5 mt-2">
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <MapPin size={16} className="shrink-0" />
+                        <span className="line-clamp-1">{umkm.location || "Lokasi Kantin"}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <Clock size={16} className="shrink-0" />
+                        <span>{umkm.hours || "Jam Buka Tidak Diketahui"}</span>
+                      </div>
                     </div>
                   </div>
 
                   <button 
                     onClick={() => navigate('/katalog-menu', { state: { selectedUmkm: umkm.name } })}
-                    className="w-full py-2.5 border-2 border-gray-300 rounded-xl text-gray-700 font-bold hover:border-[#15803d] hover:text-[#15803d] transition-colors mt-auto flex items-center justify-center gap-2"
+                    className={`w-full py-2.5 border-2 rounded-xl font-bold transition-colors mt-4 flex items-center justify-center gap-2 ${
+                      umkm.isOpen 
+                        ? "border-gray-300 text-gray-700 hover:border-[#15803d] hover:text-[#15803d]" 
+                        : "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
+                    }`}
+                    disabled={!umkm.isOpen}
                   >
                     <Store size={18} />
-                    LIHAT MENU
+                    {umkm.isOpen ? "LIHAT MENU" : "SEDANG TUTUP"}
                   </button>
                 </div>
 
@@ -182,7 +218,6 @@ function KatalogUmkm() {
 
       </div>
 
-      {/* PANGGIL KOMPONEN KERANJANG DI SINI */}
       <FloatingCart />
       
     </div>

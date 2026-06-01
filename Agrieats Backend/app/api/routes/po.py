@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.db import models
@@ -6,6 +6,9 @@ from app.schemas import po as po_schema
 from app.crud.crud_po import po_repository
 from app.api.dependencies import get_current_user
 from typing import List
+import os
+import uuid
+import shutil
 
 router = APIRouter()
 
@@ -111,3 +114,34 @@ def umkm_konfirmasi_pesanan(
         id_umkm=current_user.id_akun, 
         tindakan=tindakan
     )
+
+@router.put("/{id_po}/upload-bukti", response_model=po_schema.POResponse)
+def unggah_bukti_pembayaran(
+    id_po: str,
+    bukti: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.Akun = Depends(get_current_user)
+):
+    if current_user.peran != "MAHASISWA":
+        raise HTTPException(status_code=403, detail="Akses ditolak.")
+        
+    db_po = po_repository.get_po_by_id(db, id_po=id_po)
+    if not db_po:
+        raise HTTPException(status_code=404, detail="Pesanan tidak ditemukan")
+
+    os.makedirs("app/static/images/payments", exist_ok=True)
+    
+    ekstensi = bukti.filename.split(".")[-1]
+    nama_file = f"pay_{uuid.uuid4()}.{ekstensi}"
+    lokasi_simpan = f"app/static/images/payments/{nama_file}"
+
+    with open(lokasi_simpan, "wb") as buffer:
+        shutil.copyfileobj(bukti.file, buffer)
+        
+    foto_url = f"/static/images/payments/{nama_file}"
+    
+    db_po.bukti_pembayaran = foto_url 
+    db.commit()
+    db.refresh(db_po)
+    
+    return db_po

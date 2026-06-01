@@ -8,7 +8,6 @@ import OrderDetailModal from "../../components/umkm/modal/OrderDetailModal";
 
 function Orders() {
   const [storeOpen, setStoreOpen] = useState(true);
-  // Default tab disesuaikan langsung ke status awal database
   const [activeTab, setActiveTab] = useState("Menunggu Validasi");
   const [orders, setOrders] = useState([]);
 
@@ -27,7 +26,6 @@ function Orders() {
 
   async function loadOrders() {
     try {
-      // 1. Ambil daftar menu toko ini dulu untuk mencocokkan ID dengan Nama Menu
       let menuMap = {};
       try {
         const menuRes = await api.get("/api/menu/saya");
@@ -48,6 +46,7 @@ function Orders() {
         total: order.total_harga || 0,
         status: order.status || "Menunggu Validasi",
         declineReason: "", 
+        bukti_pembayaran: order.bukti_pembayaran || null, 
         items: (Array.isArray(order.items) ? order.items : []).map((item) => ({
           name: item.id_menu 
             ? menuMap[item.id_menu] || `Menu (ID: ${String(item.id_menu).substring(0, 8)})` 
@@ -123,7 +122,6 @@ function Orders() {
     }
   }
 
-  // FUNGSI BARU: Untuk menyelesaikan pesanan
   async function handleCompleteOrder(orderId) {
     try {
       await api.put(`/api/po/${orderId}/status`, { status: "Selesai" });
@@ -149,57 +147,29 @@ function Orders() {
       <div className="flex-1 ml-64 p-10">
         <Topbar storeOpen={storeOpen} updateStoreStatus={updateStoreStatus} />
 
-        {/* HEADER */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Manajemen Pesanan</h1>
           <p className="text-gray-500 mt-2">Kelola seluruh pesanan masuk</p>
         </div>
 
-        {/* TABS */}
         <div className="flex gap-4 mb-8">
-          <button
-            onClick={() => setActiveTab("Menunggu Validasi")}
-            className={`px-6 py-3 rounded-xl font-bold transition-all ${
-              activeTab === "Menunggu Validasi"
-                ? "bg-[#15803d] text-white shadow-md"
-                : "bg-white text-gray-600 hover:bg-gray-50"
-            }`}
-          >
-            Pesanan Masuk
-          </button>
-          <button
-            onClick={() => setActiveTab("Diproses")}
-            className={`px-6 py-3 rounded-xl font-bold transition-all ${
-              activeTab === "Diproses"
-                ? "bg-[#15803d] text-white shadow-md"
-                : "bg-white text-gray-600 hover:bg-gray-50"
-            }`}
-          >
-            Sedang Diproses
-          </button>
-          <button
-            onClick={() => setActiveTab("Selesai")}
-            className={`px-6 py-3 rounded-xl font-bold transition-all ${
-              activeTab === "Selesai"
-                ? "bg-[#15803d] text-white shadow-md"
-                : "bg-white text-gray-600 hover:bg-gray-50"
-            }`}
-          >
-            Selesai
-          </button>
-          <button
-            onClick={() => setActiveTab("Ditolak")}
-            className={`px-6 py-3 rounded-xl font-bold transition-all ${
-              activeTab === "Ditolak"
-                ? "bg-[#15803d] text-white shadow-md"
-                : "bg-white text-gray-600 hover:bg-gray-50"
-            }`}
-          >
-            Ditolak
-          </button>
+          {["Menunggu Validasi", "Diproses", "Selesai", "Ditolak"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-6 py-3 rounded-xl font-bold transition-all ${
+                activeTab === tab
+                  ? "bg-[#15803d] text-white shadow-md"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              {tab === "Menunggu Validasi" ? "Pesanan Masuk" 
+                : tab === "Diproses" ? "Sedang Diproses" 
+                : tab}
+            </button>
+          ))}
         </div>
 
-        {/* LIST ORDER */}
         <div className="space-y-5">
           {filteredOrders.length > 0 ? (
             filteredOrders.map((order) => (
@@ -223,7 +193,6 @@ function Orders() {
         </div>
       </div>
 
-      {/* DETAIL MODAL */}
       <OrderDetailModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -233,7 +202,6 @@ function Orders() {
         onComplete={handleCompleteOrder}
       />
 
-      {/* DECLINE MODAL */}
       {showDeclineModal && (
         <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
           <div className="bg-white rounded-3xl p-8 w-[500px] shadow-2xl">
