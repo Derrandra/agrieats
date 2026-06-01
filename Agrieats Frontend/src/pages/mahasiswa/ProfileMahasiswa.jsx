@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Mail, BookOpen, Phone, Shield, ChevronRight, LogOut, X, Save } from "lucide-react";
+import { User, Mail, BookOpen, Phone, Shield, ChevronRight, LogOut, X, Save, KeyRound } from "lucide-react";
 import api from "../../services/api";
 
 import SidebarMahasiswa from "../../components/mahasiswa/SidebarMahasiswa";
@@ -20,6 +20,11 @@ function ProfileMahasiswa() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", email: "", phone: "" });
   const [isSaving, setIsSaving] = useState(false);
+
+  // State untuk Modal Edit Password
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ oldPassword: "", newPassword: "", confirmPassword: "" });
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   useEffect(() => {
     loadUserProfile();
@@ -70,7 +75,7 @@ function ProfileMahasiswa() {
     }
   };
 
-  // Fungsi untuk membuka modal dan mengisi form dengan data saat ini
+  // Fungsi untuk membuka modal Edit Profil
   const openEditModal = () => {
     setEditForm({
       name: userProfile.name,
@@ -80,21 +85,18 @@ function ProfileMahasiswa() {
     setIsEditModalOpen(true);
   };
 
-  // Fungsi untuk menyimpan perubahan ke Backend
+  // Fungsi untuk menyimpan perubahan Profil
   const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
-      // Sesuaikan key payload ini dengan skema Pydantic di FastAPI kamu
       const payload = {
         username: editForm.name,
         email: editForm.email,
         telepon: editForm.phone
       };
 
-      // Tembak API Update (Pastikan endpoint ini sudah ada di backend)
       await api.put("/api/mahasiswa/me", payload);
 
-      // Update state lokal agar UI langsung berubah
       setUserProfile(prev => ({
         ...prev,
         name: editForm.name,
@@ -102,7 +104,6 @@ function ProfileMahasiswa() {
         phone: editForm.phone
       }));
 
-      // Update localStorage juga jika diperlukan
       const currentUser = JSON.parse(localStorage.getItem("currentUser")) || {};
       localStorage.setItem("currentUser", JSON.stringify({
         ...currentUser,
@@ -118,6 +119,38 @@ function ProfileMahasiswa() {
       alert(error.response?.data?.detail || "Terjadi kesalahan saat memperbarui profil.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Fungsi untuk menyimpan perubahan Password
+  const handleUpdatePassword = async () => {
+    if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      alert("Harap isi semua kolom kata sandi!");
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      alert("Kata sandi baru dan konfirmasi tidak cocok!");
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      const payload = {
+        old_password: passwordForm.oldPassword,
+        new_password: passwordForm.newPassword
+      };
+
+      await api.put("/api/mahasiswa/password", payload);
+
+      alert("Kata sandi berhasil diperbarui!");
+      setIsPasswordModalOpen(false);
+      setPasswordForm({ oldPassword: "", newPassword: "", confirmPassword: "" }); // Reset form
+    } catch (error) {
+      console.error("Gagal memperbarui kata sandi:", error);
+      alert(error.response?.data?.detail || "Kata sandi lama salah atau terjadi kesalahan.");
+    } finally {
+      setIsUpdatingPassword(false);
     }
   };
 
@@ -195,7 +228,12 @@ function ProfileMahasiswa() {
                   </div>
                   <ChevronRight size={18} className="text-gray-400" />
                 </button>
-                <button className="flex items-center justify-between py-4 border-b border-gray-100 text-left hover:text-[#15803d] transition-colors group">
+                
+                {/* Tombol yang akan membuka modal Perbarui Kata Sandi */}
+                <button 
+                  onClick={() => setIsPasswordModalOpen(true)}
+                  className="flex items-center justify-between py-4 border-b border-gray-100 text-left hover:text-[#15803d] transition-colors group"
+                >
                   <div className="flex items-center gap-3">
                     <Shield size={18} className="text-gray-400 group-hover:text-[#15803d]" />
                     <div>
@@ -218,7 +256,6 @@ function ProfileMahasiswa() {
             </button>
 
           </div>
-
         </div>
       </div>
 
@@ -299,7 +336,78 @@ function ProfileMahasiswa() {
           </div>
         </div>
       )}
-      
+
+      {/* MODAL PERBARUI KATA SANDI */}
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-800">Perbarui Kata Sandi</h2>
+              <button 
+                onClick={() => setIsPasswordModalOpen(false)}
+                className="text-gray-400 hover:text-red-500 transition-colors bg-gray-50 hover:bg-red-50 p-2 rounded-full"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 flex flex-col gap-5">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Kata Sandi Saat Ini</label>
+                <input 
+                  type="password" 
+                  value={passwordForm.oldPassword}
+                  onChange={(e) => setPasswordForm({...passwordForm, oldPassword: e.target.value})}
+                  placeholder="Masukkan kata sandi lama"
+                  className="w-full bg-white border border-gray-300 rounded-xl p-3 text-gray-800 outline-none focus:border-[#15803d] focus:ring-1 focus:ring-[#15803d] transition-all"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Kata Sandi Baru</label>
+                <input 
+                  type="password" 
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
+                  placeholder="Buat kata sandi baru"
+                  className="w-full bg-white border border-gray-300 rounded-xl p-3 text-gray-800 outline-none focus:border-[#15803d] focus:ring-1 focus:ring-[#15803d] transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Konfirmasi Kata Sandi Baru</label>
+                <input 
+                  type="password" 
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
+                  placeholder="Ulangi kata sandi baru"
+                  className="w-full bg-white border border-gray-300 rounded-xl p-3 text-gray-800 outline-none focus:border-[#15803d] focus:ring-1 focus:ring-[#15803d] transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-100 flex gap-3">
+              <button 
+                onClick={() => {
+                  setIsPasswordModalOpen(false);
+                  setPasswordForm({ oldPassword: "", newPassword: "", confirmPassword: "" }); // Reset form saat batal
+                }}
+                className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={handleUpdatePassword}
+                disabled={isUpdatingPassword}
+                className="flex-1 py-3 bg-[#15803d] text-white font-bold rounded-xl hover:bg-green-800 transition-colors flex justify-center items-center gap-2 shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {isUpdatingPassword ? "Menyimpan..." : <><KeyRound size={18} /> Simpan Sandi</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -5,8 +5,8 @@ from app.schemas import user
 from app.crud import crud_user
 from app.api.dependencies import get_current_user
 from app.db import models
-from app.schemas.user import MahasiswaUpdate
-
+from app.schemas.user import MahasiswaUpdate, PasswordUpdate
+from app.core.security import verify_password, get_password_hash
 router = APIRouter()
 
 @router.post("/register", response_model=user.MahasiswaResponse, status_code=status.HTTP_201_CREATED)
@@ -65,3 +65,17 @@ def update_profil_mahasiswa(
     db.refresh(current_user)
     
     return {"message": "Profil berhasil diperbarui"}
+
+@router.put("/password")
+def update_password(
+    payload: PasswordUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.Akun = Depends(get_current_user)
+):
+    if not verify_password(payload.old_password, current_user.password): 
+        raise HTTPException(status_code=400, detail="Kata sandi lama tidak sesuai.")
+
+    current_user.password = get_password_hash(payload.new_password)
+    db.commit()
+
+    return {"message": "Kata sandi berhasil diperbarui."}

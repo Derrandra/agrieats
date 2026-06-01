@@ -87,3 +87,7 @@ class MahasiswaUpdate(BaseModel):
     username: Optional[str] = None
     email: Optional[str] = None
     telepon: Optional[str] = None
+
+class PasswordUpdate(BaseModel):
+    old_password: str
+    new_password: str
