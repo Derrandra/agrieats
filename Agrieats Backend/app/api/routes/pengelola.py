@@ -74,8 +74,8 @@ def get_statistik_kantin(
 
     if start and end:
         base_query = base_query.filter(
-            func.date(models.PreOrder.created_at) >= start,
-            func.date(models.PreOrder.created_at) <= end
+            created_at_wib(models.PreOrder) >= start,
+            created_at_wib(models.PreOrder) <= end
         )
 
     # DISTINCT diperlukan karena 1 PreOrder bisa punya banyak DetailPO
@@ -92,7 +92,7 @@ def get_statistik_kantin(
     )
     
     if start and end:
-        revenue_query = revenue_query.filter(func.date(models.PreOrder.created_at) >= start, func.date(models.PreOrder.created_at) <= end)
+        revenue_query = revenue_query.filter(created_at_wib(models.PreOrder) >= start, created_at_wib(models.PreOrder) <= end)
     
     revenue_val = revenue_query.scalar() or 0
 
@@ -109,7 +109,7 @@ def get_statistik_kantin(
     )
 
     if start and end:
-        top_kantin_query = top_kantin_query.filter(func.date(models.PreOrder.created_at) >= start, func.date(models.PreOrder.created_at) <= end)
+        top_kantin_query = top_kantin_query.filter(created_at_wib(models.PreOrder) >= start, created_at_wib(models.PreOrder) <= end)
         
     top_kantin_query = top_kantin_query.group_by(models.Menu.id_umkm).order_by(func.sum(models.DetailPO.harga_satuan * models.DetailPO.kuantitas).desc()).first()
 
@@ -122,7 +122,7 @@ def get_statistik_kantin(
     chart_data = []
     
     daily_sales = db.query(
-        func.date(models.PreOrder.created_at).label('tanggal'),
+        created_at_wib(models.PreOrder).label('tanggal'),
         func.sum(models.DetailPO.harga_satuan * models.DetailPO.kuantitas).label('total')
     ).join(
         models.PreOrder, models.DetailPO.id_po == models.PreOrder.id_po
@@ -134,9 +134,9 @@ def get_statistik_kantin(
     )
     
     if start and end:
-        daily_sales = daily_sales.filter(func.date(models.PreOrder.created_at) >= start, func.date(models.PreOrder.created_at) <= end)
+        daily_sales = daily_sales.filter(created_at_wib(models.PreOrder) >= start, created_at_wib(models.PreOrder) <= end)
         
-    daily_sales = daily_sales.group_by(func.date(models.PreOrder.created_at)).order_by(func.date(models.PreOrder.created_at)).all()
+    daily_sales = daily_sales.group_by(created_at_wib(models.PreOrder)).order_by(created_at_wib(models.PreOrder)).all()
 
     for ds in daily_sales:
         chart_data.append({
