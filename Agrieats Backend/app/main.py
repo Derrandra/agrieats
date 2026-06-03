@@ -19,7 +19,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 origins = [
     "http://localhost:5173",
-    "https://agrieats-ipb.vercel.app",
+    "https://agrieats-vercel-qh3v.vercel.app/",
 ]
 
 app.add_middleware(
