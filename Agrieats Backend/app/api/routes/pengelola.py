@@ -5,16 +5,18 @@ from app.schemas import user as schemas
 from app.crud import crud_user
 from app.api.dependencies import get_current_user
 from app.db import models
-from sqlalchemy import func
-from sqlalchemy.orm import aliased
-from app.schemas.user import PengelolaUpdate 
 from sqlalchemy import func, Date, text
+from sqlalchemy.orm import aliased
+from app.schemas.user import PengelolaUpdate
+from datetime import date as DateType
+
 
 def created_at_wib(model):
     return func.cast(
-        model.created_at + text("INTERVAL '7 hours'"), 
+        model.created_at + text("INTERVAL '7 hours'"),
         Date
     )
+
 
 router = APIRouter()
 
@@ -45,14 +47,18 @@ def get_umkm_binaan(db: Session = Depends(get_db), current_user: models.Akun = D
 
 @router.get("/statistik")
 def get_statistik_kantin(
-    view: str = "daily", 
-    start: str = None, 
-    end: str = None, 
-    db: Session = Depends(get_db), 
+    view: str = "daily",
+    start: str = None,
+    end: str = None,
+    db: Session = Depends(get_db),
     current_user: models.Akun = Depends(get_current_user)
 ):
     if current_user.peran != "PENGELOLA":
         raise HTTPException(status_code=403, detail="Akses ditolak.")
+
+    # Parse string ke date object agar PostgreSQL tidak error type mismatch
+    start_date: DateType = DateType.fromisoformat(start) if start else None
+    end_date: DateType = DateType.fromisoformat(end) if end else None
 
     umkm_binaan = db.query(models.UMKM.id_akun).filter(models.UMKM.id_pengelola == current_user.id_akun).all()
     umkm_ids = [u[0] for u in umkm_binaan]
@@ -72,10 +78,10 @@ def get_statistik_kantin(
         models.PreOrder.status == 'Selesai'
     )
 
-    if start and end:
+    if start_date and end_date:
         base_query = base_query.filter(
-            created_at_wib(models.PreOrder) >= start,
-            created_at_wib(models.PreOrder) <= end
+            created_at_wib(models.PreOrder) >= start_date,
+            created_at_wib(models.PreOrder) <= end_date
         )
 
     # DISTINCT diperlukan karena 1 PreOrder bisa punya banyak DetailPO
@@ -90,10 +96,13 @@ def get_statistik_kantin(
         models.Menu.id_umkm.in_(umkm_ids),
         models.PreOrder.status == 'Selesai'
     )
-    
-    if start and end:
-        revenue_query = revenue_query.filter(created_at_wib(models.PreOrder) >= start, created_at_wib(models.PreOrder) <= end)
-    
+
+    if start_date and end_date:
+        revenue_query = revenue_query.filter(
+            created_at_wib(models.PreOrder) >= start_date,
+            created_at_wib(models.PreOrder) <= end_date
+        )
+
     revenue_val = revenue_query.scalar() or 0
 
     top_kantin_query = db.query(
@@ -108,10 +117,15 @@ def get_statistik_kantin(
         models.PreOrder.status == 'Selesai'
     )
 
-    if start and end:
-        top_kantin_query = top_kantin_query.filter(created_at_wib(models.PreOrder) >= start, created_at_wib(models.PreOrder) <= end)
-        
-    top_kantin_query = top_kantin_query.group_by(models.Menu.id_umkm).order_by(func.sum(models.DetailPO.harga_satuan * models.DetailPO.kuantitas).desc()).first()
+    if start_date and end_date:
+        top_kantin_query = top_kantin_query.filter(
+            created_at_wib(models.PreOrder) >= start_date,
+            created_at_wib(models.PreOrder) <= end_date
+        )
+
+    top_kantin_query = top_kantin_query.group_by(models.Menu.id_umkm).order_by(
+        func.sum(models.DetailPO.harga_satuan * models.DetailPO.kuantitas).desc()
+    ).first()
 
     top_kantin_name = "-"
     if top_kantin_query:
@@ -120,7 +134,7 @@ def get_statistik_kantin(
             top_kantin_name = umkm_data.nama_umkm
 
     chart_data = []
-    
+
     daily_sales = db.query(
         created_at_wib(models.PreOrder).label('tanggal'),
         func.sum(models.DetailPO.harga_satuan * models.DetailPO.kuantitas).label('total')
@@ -132,11 +146,18 @@ def get_statistik_kantin(
         models.Menu.id_umkm.in_(umkm_ids),
         models.PreOrder.status == 'Selesai'
     )
-    
-    if start and end:
-        daily_sales = daily_sales.filter(created_at_wib(models.PreOrder) >= start, created_at_wib(models.PreOrder) <= end)
-        
-    daily_sales = daily_sales.group_by(created_at_wib(models.PreOrder)).order_by(created_at_wib(models.PreOrder)).all()
+
+    if start_date and end_date:
+        daily_sales = daily_sales.filter(
+            created_at_wib(models.PreOrder) >= start_date,
+            created_at_wib(models.PreOrder) <= end_date
+        )
+
+    daily_sales = daily_sales.group_by(
+        created_at_wib(models.PreOrder)
+    ).order_by(
+        created_at_wib(models.PreOrder)
+    ).all()
 
     for ds in daily_sales:
         chart_data.append({
@@ -155,7 +176,7 @@ def get_statistik_kantin(
 
 @router.get("/ulasan")
 def get_ulasan_kantin(
-    db: Session = Depends(get_db), 
+    db: Session = Depends(get_db),
     current_user: models.Akun = Depends(get_current_user)
 ):
     if current_user.peran != "PENGELOLA":
@@ -164,7 +185,7 @@ def get_ulasan_kantin(
     umkm_binaan = db.query(models.UMKM.id_umkm).filter(
         models.UMKM.id_pengelola == current_user.id_akun
     ).all()
-    
+
     umkm_ids = [u[0] for u in umkm_binaan]
 
     if not umkm_ids:
@@ -174,16 +195,14 @@ def get_ulasan_kantin(
 
     ulasan_query = db.query(
         models.Ulasan.id_ulasan,
-        CustomerAkun.username.label("customer"), # Mengambil nama dari alias
+        CustomerAkun.username.label("customer"),
         models.UMKM.nama_umkm.label("umkm"),
         models.Ulasan.rating,
         models.Ulasan.tanggal_ulasan,
         models.Ulasan.isi_ulasan.label("comment")
     ).join(
-        # Gabungkan ke alias tabel akun menggunakan nim mahasiswa
-        CustomerAkun, models.Ulasan.nim == CustomerAkun.id_akun 
+        CustomerAkun, models.Ulasan.nim == CustomerAkun.id_akun
     ).join(
-        # Gabungkan ke tabel UMKM (yang secara otomatis membawa tabel akun utamanya)
         models.UMKM, models.Ulasan.id_umkm == models.UMKM.id_umkm
     ).filter(
         models.Ulasan.id_umkm.in_(umkm_ids)
@@ -192,8 +211,8 @@ def get_ulasan_kantin(
     ).all()
 
     hasil_ulasan = []
-    
-    bulan_indo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+
+    bulan_indo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni",
                   "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
 
     for u in ulasan_query:
@@ -222,6 +241,6 @@ def update_profil_pengelola(
 ):
     if current_user.peran != "PENGELOLA":
         raise HTTPException(status_code=403, detail="Akses ditolak")
-    
+
     updated_user = crud_user.update_pengelola_profile(db, current_user.id_akun, payload)
     return updated_user
