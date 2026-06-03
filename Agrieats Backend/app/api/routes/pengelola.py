@@ -8,7 +8,13 @@ from app.db import models
 from sqlalchemy import func
 from sqlalchemy.orm import aliased
 from app.schemas.user import PengelolaUpdate 
-from sqlalchemy import cast, Date
+from sqlalchemy import func, Date, text
+
+def created_at_wib(model):
+    return func.cast(
+        model.created_at + text("INTERVAL '7 hours'"), 
+        Date
+    )
 
 router = APIRouter()
 
@@ -68,9 +74,10 @@ def get_statistik_kantin(
 
     if start and end:
         base_query = base_query.filter(
-            cast(models.PreOrder.created_at, Date) >= cast(start, Date),
-            cast(models.PreOrder.created_at, Date) <= cast(end, Date)
+            func.date(models.PreOrder.created_at) >= start,
+            func.date(models.PreOrder.created_at) <= end
         )
+
     # DISTINCT diperlukan karena 1 PreOrder bisa punya banyak DetailPO
     total_sales = base_query.distinct(models.PreOrder.id_po).count()
 
