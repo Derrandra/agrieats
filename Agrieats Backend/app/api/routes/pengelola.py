@@ -8,6 +8,7 @@ from app.db import models
 from sqlalchemy import func
 from sqlalchemy.orm import aliased
 from app.schemas.user import PengelolaUpdate 
+from sqlalchemy import cast, Date
 
 router = APIRouter()
 
@@ -67,10 +68,9 @@ def get_statistik_kantin(
 
     if start and end:
         base_query = base_query.filter(
-            func.date(models.PreOrder.created_at) >= start,
-            func.date(models.PreOrder.created_at) <= end
+            cast(models.PreOrder.created_at, Date) >= cast(start, Date),
+            cast(models.PreOrder.created_at, Date) <= cast(end, Date)
         )
-
     # DISTINCT diperlukan karena 1 PreOrder bisa punya banyak DetailPO
     total_sales = base_query.distinct(models.PreOrder.id_po).count()
 
