@@ -17,32 +17,25 @@ app = FastAPI(
 os.makedirs("app/static/images", exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-origins = [
-    "http://localhost:5173",
-    "https://agrieats-vercel-qh3v.vercel.app/",
-]
-
+# KONFIGURASI CORS SAPU JAGAT (Paling aman untuk JWT Token)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],      
-    allow_headers=["*"],
+    allow_origins=["*"],         # Mengizinkan SEMUA URL tanpa terkecuali
+    allow_credentials=False,     # Wajib False jika menggunakan "*"
+    allow_methods=["*"],         
+    allow_headers=["*"],         
 )
 
 app.include_router(mahasiswa.router, prefix="/api/mahasiswa", tags=["Mahasiswa"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Autentikasi"])
-# app.include_router(mahasiswa.router, prefix="/api/mahasiswa", tags=["Mahasiswa"])
-
 app.include_router(umkm.router, prefix="/api/umkm", tags=["Penjual / UMKM"])
 app.include_router(menu.router, prefix="/api/menu", tags=["Katalog Menu"])
-
 app.include_router(po.router, prefix="/api/po", tags=["Transkasi Pre-Order"])
 app.include_router(ulasan.router, prefix="/api/ulasan", tags=["Ulasan dan Rating"])
-
 app.include_router(kategori.router, prefix="/api/umkm", tags=["Kategori Menu UMKM"])
 app.include_router(cart.router, prefix="/api/cart", tags=["Keranjang Belanja Mahasiswa"])
 app.include_router(pengelola.router, prefix="/api/pengelola", tags=["Pengelola"])
+
 @app.get("/")
 def root():
     return {"status": "Migration Successful"}
