@@ -9,14 +9,16 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 
 
+import bcrypt
+
 def get_password_hash(password: str) -> str:
-    pwd_str = password[:72]
+    pwd_bytes = password.encode('utf-8')[:72]
     
     salt = bcrypt.gensalt()
     
-    hashed_password = bcrypt.hashpw(pwd_str.encode('utf-8'), salt)
+    hashed_bytes = bcrypt.hashpw(pwd_bytes, salt)
     
-    return hashed_password.decode('utf-8')
+    return hashed_bytes.decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     pwd_bytes = plain_password.encode('utf-8')[:72]
