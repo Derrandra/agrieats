@@ -5,18 +5,16 @@ from app.schemas import user as schemas
 from app.crud import crud_user
 from app.api.dependencies import get_current_user
 from app.db import models
-from sqlalchemy import func, Date, text
+from sqlalchemy import func, Date, text, cast
 from sqlalchemy.orm import aliased
 from app.schemas.user import PengelolaUpdate
 from datetime import date as DateType
-
 
 def created_at_wib(model):
     return func.cast(
         model.created_at + text("INTERVAL '7 hours'"),
         Date
     )
-
 
 router = APIRouter()
 
@@ -56,7 +54,7 @@ def get_statistik_kantin(
     if current_user.peran != "PENGELOLA":
         raise HTTPException(status_code=403, detail="Akses ditolak.")
 
-    # Parse string ke date object agar PostgreSQL tidak error type mismatch
+    # Parse string ke date object
     start_date: DateType = DateType.fromisoformat(start) if start else None
     end_date: DateType = DateType.fromisoformat(end) if end else None
 
@@ -78,16 +76,17 @@ def get_statistik_kantin(
         models.PreOrder.status == 'Selesai'
     )
 
+    # PERBAIKAN 1: Tambahkan cast(..., Date)
     if start_date and end_date:
         base_query = base_query.filter(
-            created_at_wib(models.PreOrder) >= start_date,
-            created_at_wib(models.PreOrder) <= end_date
+            created_at_wib(models.PreOrder) >= cast(start_date, Date),
+            created_at_wib(models.PreOrder) <= cast(end_date, Date)
         )
 
     # DISTINCT diperlukan karena 1 PreOrder bisa punya banyak DetailPO
     total_sales = base_query.distinct(models.PreOrder.id_po).count()
 
-    # Menggunakan DetailPO (harga * qty) karena 1 PO bisa berisi gabungan dari beberapa UMKM (jika dibolehkan checkout multi-toko)
+    # Menggunakan DetailPO (harga * qty)
     revenue_query = db.query(func.sum(models.DetailPO.harga_satuan * models.DetailPO.kuantitas)).join(
         models.PreOrder, models.DetailPO.id_po == models.PreOrder.id_po
     ).join(
@@ -97,10 +96,11 @@ def get_statistik_kantin(
         models.PreOrder.status == 'Selesai'
     )
 
+    # PERBAIKAN 2: Tambahkan cast(..., Date)
     if start_date and end_date:
         revenue_query = revenue_query.filter(
-            created_at_wib(models.PreOrder) >= start_date,
-            created_at_wib(models.PreOrder) <= end_date
+            created_at_wib(models.PreOrder) >= cast(start_date, Date),
+            created_at_wib(models.PreOrder) <= cast(end_date, Date)
         )
 
     revenue_val = revenue_query.scalar() or 0
@@ -117,10 +117,11 @@ def get_statistik_kantin(
         models.PreOrder.status == 'Selesai'
     )
 
+    # PERBAIKAN 3: Tambahkan cast(..., Date)
     if start_date and end_date:
         top_kantin_query = top_kantin_query.filter(
-            created_at_wib(models.PreOrder) >= start_date,
-            created_at_wib(models.PreOrder) <= end_date
+            created_at_wib(models.PreOrder) >= cast(start_date, Date),
+            created_at_wib(models.PreOrder) <= cast(end_date, Date)
         )
 
     top_kantin_query = top_kantin_query.group_by(models.Menu.id_umkm).order_by(
@@ -147,10 +148,11 @@ def get_statistik_kantin(
         models.PreOrder.status == 'Selesai'
     )
 
+    # PERBAIKAN 4: Tambahkan cast(..., Date)
     if start_date and end_date:
         daily_sales = daily_sales.filter(
-            created_at_wib(models.PreOrder) >= start_date,
-            created_at_wib(models.PreOrder) <= end_date
+            created_at_wib(models.PreOrder) >= cast(start_date, Date),
+            created_at_wib(models.PreOrder) <= cast(end_date, Date)
         )
 
     daily_sales = daily_sales.group_by(
