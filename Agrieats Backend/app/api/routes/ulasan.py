@@ -8,6 +8,7 @@ from app.db import models
 from app.schemas import ulasan as ulasan_schema
 from app.crud.crud_ulasan import ulasan_repository
 from app.api.dependencies import get_current_user
+from typing import List
 
 router = APIRouter()
 
@@ -53,3 +54,19 @@ def unggah_foto_ulasan(
     db.refresh(db_ulasan)
     
     return db_ulasan
+
+@router.get("/kantin", response_model=List[ulasan_schema.UlasanResponse])
+def lihat_ulasan_kantin(
+    db: Session = Depends(get_db),
+    current_user: models.Akun = Depends(get_current_user)
+):
+    if current_user.peran != "PENGELOLA":
+        raise HTTPException(status_code=403, detail="Akses ditolak. Hanya pengelola kantin yang dapat melihat ini.")
+
+    daftar_ulasan = db.query(models.Ulasan).join(
+        models.UMKM, models.Ulasan.id_umkm == models.UMKM.id_umkm
+    ).filter(
+        models.UMKM.id_pengelola == current_user.id_akun
+    ).order_by(models.Ulasan.tanggal_ulasan.desc()).all()
+
+    return daftar_ulasan
